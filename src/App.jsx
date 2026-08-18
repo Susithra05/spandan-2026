@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { festDetails, tiers, eventCategories, eventsList, teamContacts } from './data/festData';
-import { supabase } from './lib/supabase';
 import SplashScreen from './components/SplashScreen';
+import CountdownTimer from './components/CountdownTimer';
+import { supabase } from './lib/supabase';
+import { 
+  festDetails, 
+  tiers, 
+  eventCategories, 
+  eventsList, 
+  teamContacts, 
+  scheduleData 
+} from './data/festData';
 
 // Lightweight pure SVGs to avoid React 19 / Lucide incompatibility
 const SparklesIcon = () => (
@@ -180,7 +188,7 @@ export default function App() {
 
           {/* Navigation Items */}
           <nav className="hidden md:flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 shadow-inner">
-            {['home', 'about', 'events', 'registration', 'contact'].map((tab) => (
+            {['home', 'about', 'events', 'schedule', 'registration', 'contact'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -241,6 +249,9 @@ export default function App() {
                     The Enchanted Reverie
                   </span>
                 </h1>
+
+                {/* Real-Time Live Countdown */}
+                <CountdownTimer targetDate={festDetails.targetDate} />
 
                 <p className="text-base md:text-lg text-slate-300 max-w-2xl mx-auto font-light leading-relaxed">
                   "{festDetails.tagline}" Step into a fever dream where clocks lose track of time, 
@@ -384,6 +395,48 @@ export default function App() {
               ))}
             </div>
           </section>
+        )}
+
+        {/* TAB: SCHEDULE */}
+        {activeTab === 'schedule' && (
+          <section className="max-w-5xl mx-auto px-4 py-16 space-y-10">
+            <div className="text-center space-y-2">
+              <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-cyan-400">
+              Festival Schedule
+              </h2>
+              <p className="text-slate-400 text-sm">October 26 – October 31, 2026 • 6 Days of Pure Reverie</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {scheduleData.map((dayPlan, idx) => (
+                <div 
+                 key={idx} 
+                 className="glow-card p-6 rounded-3xl border border-white/10 hover:border-cyan-500/40 transition duration-300 space-y-4"
+                >
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                   <div>
+                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30">
+                     {dayPlan.day}
+                    </span>
+                    <h3 className="text-lg font-black text-white mt-1">{dayPlan.title}</h3>
+                   </div>
+                   <div className="text-xs font-mono text-cyan-400 font-semibold bg-cyan-950/40 px-3 py-1 rounded-xl border border-cyan-800/40">
+                    {dayPlan.date}
+                   </div>
+                 </div>
+
+                 <ul className="space-y-2.5 text-xs text-slate-300">
+                  {dayPlan.highlights.map((item, hIdx) => (
+                    <li key={hIdx} className="flex items-start gap-2.5">
+                      <span className="text-cyan-400 mt-0.5 text-sm">✦</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                 </ul>
+               </div>
+              ))}
+           </div>
+         </section>
         )}
 
         {/* TAB 4: REGISTRATION */}

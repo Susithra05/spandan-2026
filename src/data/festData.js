@@ -3,7 +3,8 @@ export const festDetails = {
   name: "SPANDAN 2026",
   theme: "The Enchanted Reverie",
   tagline: "Where reality stutters… and the impossible feels strangely familiar.",
-  dates: "August 2026",
+  dates: "October 26 – October 31, 2026",
+  targetDate: "2026-10-26T09:00:00+05:30", // Start timestamp for Countdown
   venue: "JIPMER Campus, Pondicherry",
   instagram: "jipmer_spandan",
 };
@@ -124,4 +125,75 @@ export const teamContacts = [
   { role: "Public Relations", name: "Thirupugazh", phone: "7358121539" },
   { role: "Public Relations", name: "Lineysha", phone: "8121217021" },
   { role: "Accommodation", name: "Aijaz", phone: "9148746711" }
+];
+
+export const scheduleData = [
+  {
+    day: "Day 1",
+    date: "Oct 26, 2026",
+    title: "Down The Rabbit Hole",
+    highlights: [
+      "Registration & Welcome Portals Open",
+      "Formal Debate & Opening Literary Rounds",
+      "Inaugural Ceremony (Evening)",
+      "Minor Proshow 1",
+      "DJ Night 1"
+    ]
+  },
+  {
+    day: "Day 2",
+    date: "Oct 27, 2026",
+    title: "The Chorea Spectacle",
+    highlights: [
+      "Track & Court Sports Tournaments (Football, Basketball, Cricket)",
+      "Les Beaux Arts (Face Painting, Sketching, Pot Painting)",
+      "Chorea (Theme Group Dance) Prelims & Finals",
+      "Chorea (Non-Theme Eastern & Western Group Dance)",
+      "DJ Night 2"
+    ]
+  },
+  {
+    day: "Day 3",
+    date: "Oct 28, 2026",
+    title: "Symphony & Beats",
+    highlights: [
+      "TJ Jaishankar Memorial Open Quiz",
+      "Minor Cultural Events (Solo & Duet Dance, Adaptunes)",
+      "Alaap Finals (Eastern Battle of the Bands)",
+      "DJ Night 3"
+    ]
+  },
+  {
+    day: "Day 4",
+    date: "Oct 29, 2026",
+    title: "Rock & Reverie",
+    highlights: [
+      "La Lutte (Junior & Senior MediQuiz Prelims/Finals)",
+      "Sports Semi-Finals (Badminton, Tennis, Table Tennis)",
+      "Tinnitus Finals (Western Battle of the Bands)",
+      "Minor Proshow 2"
+    ]
+  },
+  {
+    day: "Day 5",
+    date: "Oct 30, 2026",
+    title: "The Mad Runway",
+    highlights: [
+      "House Informals (Beg Borrow Steal, Eat-athon, Double Trouble)",
+      "Sports Grand Finals & Aquatics",
+      "Dernier Cri (The Flagship Fashion Show)",
+      "Acoustic Night & Informal Showdowns"
+    ]
+  },
+  {
+    day: "Day 6",
+    date: "Oct 31, 2026",
+    title: "The Grand Finale",
+    highlights: [
+      "Valedictory Ceremony & Prize Distribution",
+      "Photography & Online Writing Awards",
+      "Grand Major Proshow (Celebrity Star Night)",
+      "Closing Reverie"
+    ]
+  }
 ];
