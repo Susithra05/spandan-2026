@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { festDetails, tiers, eventCategories, eventsList, teamContacts } from './data/festData';
 import { supabase } from './lib/supabase';
+import SplashScreen from './components/SplashScreen';
 
 // Lightweight pure SVGs to avoid React 19 / Lucide incompatibility
 const SparklesIcon = () => (
@@ -46,6 +47,15 @@ const PhoneIcon = () => (
 );
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(() => {
+    // Only show once per session (so refreshes while working don't get annoying)
+    return !sessionStorage.getItem('spandan_splash_shown');
+  });
+
+  const handleSplashComplete = () => {
+    sessionStorage.setItem('spandan_splash_shown', 'true');
+    setShowSplash(false);
+  };  
   const [activeTab, setActiveTab] = useState('home');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [user, setUser] = useState(null);
@@ -152,7 +162,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#07040d] text-slate-100 flex flex-col selection:bg-fuchsia-500 selection:text-white">
-      
+      {/* 3. CONDITIONAL SPLASH SCREEN GOES RIGHT HERE */}
+      {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
       {/* NAVBAR */}
       <header className="sticky top-0 z-50 bg-[#0c0817]/90 backdrop-blur-md border-b border-fuchsia-950/60">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
