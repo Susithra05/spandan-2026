@@ -1,5 +1,5 @@
 // src/components/AdminDashboard.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 
 export default function AdminDashboard() {
@@ -44,6 +44,8 @@ export default function AdminDashboard() {
       "College",
       "Tier",
       "Events Selected",
+      "UTR Number",
+      "Payment Status",
       "Created At",
     ];
 
@@ -54,8 +56,10 @@ export default function AdminDashboard() {
       `"${r.phone || ""}"`,
       `"${r.college || ""}"`,
       `"${r.tier || ""}"`,
-      `"${(r.selected_events || []).join(", ")}"`, // 👈 updated
-      `"${new Date(r.created_at).toLocaleString()}"`,
+      `"${(r.selected_events || r.events || []).join(", ")}"`,
+      `"${r.utr_number || ""}"`,
+      `"${r.payment_status || "PENDING"}"`,
+      `"${new Date(r.created_at || r.timestamp).toLocaleString()}"`,
     ]);
 
     const csvContent =
@@ -81,7 +85,8 @@ export default function AdminDashboard() {
       item.email?.toLowerCase().includes(term) ||
       item.college?.toLowerCase().includes(term) ||
       item.phone?.includes(term) ||
-      item.tier?.toLowerCase().includes(term)
+      item.tier?.toLowerCase().includes(term) ||
+      item.utr_number?.toLowerCase().includes(term)
     );
   });
 
@@ -100,7 +105,6 @@ export default function AdminDashboard() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            {/* Password Input with Eye Toggle */}
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -201,7 +205,6 @@ export default function AdminDashboard() {
 
       {/* Stats Quick Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Card 1: Total Attendees */}
         <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
           <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
             Total Registrations
@@ -211,7 +214,6 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        {/* Card 2: Distinct Colleges */}
         <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
           <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
             Colleges Represented
@@ -227,7 +229,6 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        {/* Card 3: Unique Events Picked */}
         <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
           <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
             Unique Events Picked
@@ -243,7 +244,6 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        {/* Card 4: Total Event Signups */}
         <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
           <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
             Total Event Signups
@@ -262,7 +262,7 @@ export default function AdminDashboard() {
       <div className="flex justify-between items-center">
         <input
           type="text"
-          placeholder="Filter by Name, College, Email, Phone, or Tier..."
+          placeholder="Filter by Name, College, Email, Phone, Tier, or UTR..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full md:w-96 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs outline-none focus:border-cyan-500 transition"
@@ -282,13 +282,14 @@ export default function AdminDashboard() {
               <th className="px-4 py-3">Phone</th>
               <th className="px-4 py-3">Tier</th>
               <th className="px-4 py-3">Events Selected</th>
+              <th className="px-4 py-3">Payment / UTR</th>
               <th className="px-4 py-3">Registered On</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {filteredRegistrations.length === 0 ? (
               <tr>
-                <td colSpan="6" className="text-center py-8 text-slate-500">
+                <td colSpan="7" className="text-center py-8 text-slate-500">
                   No registrations found matching your query.
                 </td>
               </tr>
@@ -326,6 +327,24 @@ export default function AdminDashboard() {
                       )}
                     </div>
                   </td>
+
+                  <td className="px-4 py-3 font-mono text-[11px]">
+                    {row.utr_number ? (
+                      <div className="space-y-1">
+                        <span className="text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40 block w-fit">
+                          {row.utr_number}
+                        </span>
+                        <span className="text-[9px] text-amber-400 uppercase font-bold block">
+                          {row.payment_status || "PENDING"}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-500 italic text-[10px]">
+                        No UTR
+                      </span>
+                    )}
+                  </td>
+
                   <td className="px-4 py-3 font-mono text-[10px] text-slate-400">
                     {row.created_at || row.timestamp
                       ? new Date(

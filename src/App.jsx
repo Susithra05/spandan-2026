@@ -107,7 +107,6 @@ const PhoneIcon = () => (
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(() => {
-    // Only show once per session (so refreshes while working don't get annoying)
     return !sessionStorage.getItem("spandan_splash_shown");
   });
 
@@ -115,6 +114,7 @@ export default function App() {
     sessionStorage.setItem("spandan_splash_shown", "true");
     setShowSplash(false);
   };
+
   const [activeTab, setActiveTab] = useState("home");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [user, setUser] = useState(null);
@@ -123,6 +123,9 @@ export default function App() {
   const [showAuthPassword, setShowAuthPassword] = useState(false);
   const [authMode, setAuthMode] = useState("login");
   const [authMessage, setAuthMessage] = useState("");
+
+  // UTR State
+  const [utrNumber, setUtrNumber] = useState("");
 
   // Registration Form State
   const [formData, setFormData] = useState({
@@ -200,6 +203,11 @@ export default function App() {
       return;
     }
 
+    if (!utrNumber || utrNumber.trim().length < 10) {
+      alert("Please enter a valid 12-digit UTR / UPI Reference Number.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const { error } = await supabase.from("registrations").insert([
@@ -212,11 +220,14 @@ export default function App() {
           year_of_study: formData.yearOfStudy,
           tier: formData.tier,
           selected_events: formData.selectedEvents,
+          utr_number: utrNumber.trim(),
+          payment_status: "PENDING_VERIFICATION",
         },
       ]);
 
       if (error) throw error;
       setRegisteredSuccess(true);
+      setUtrNumber("");
     } catch (err) {
       alert("Registration failed: " + err.message);
     } finally {
@@ -231,8 +242,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#07040d] text-slate-100 flex flex-col selection:bg-fuchsia-500 selection:text-white">
-      {/* 3. CONDITIONAL SPLASH SCREEN GOES RIGHT HERE */}
+      {/* CONDITIONAL SPLASH SCREEN */}
       {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
+
       {/* NAVBAR */}
       <header className="sticky top-0 z-50 bg-[#0c0817]/90 backdrop-blur-md border-b border-fuchsia-950/60">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
@@ -577,7 +589,7 @@ export default function App() {
               {tiers.map((tier) => (
                 <div
                   key={tier.id}
-                  className={`p-6 rounded-3xl border bg-gradient-to-b ${tier.color} backdrop-blur-md flex flex-col justify-between space-y-6 ${
+                  className={`p-6 rounded-3xl border bg-gradient-to-b ${tier.color} backdrop-blur-md flex flex-col justify-between space-y-6${
                     formData.tier === tier.id
                       ? "ring-2 ring-white shadow-2xl"
                       : ""
@@ -744,6 +756,65 @@ export default function App() {
                           <span>{ev.title}</span>
                         </label>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* UPI QR Payment & UTR Input Block */}
+                  <div className="p-5 rounded-2xl bg-white/5 border border-fuchsia-500/30 text-center space-y-4 my-6">
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-fuchsia-300">
+                        Scan & Pay via Any UPI App
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        GPay / PhonePe / Paytm / BHIM
+                      </p>
+                    </div>
+
+                    {/* Display QR Code */}
+                    <div className="w-44 h-44 mx-auto p-2 bg-white rounded-2xl shadow-lg flex items-center justify-center">
+                      <img
+                        src="/upi-qr.png"
+                        alt="UPI QR Code"
+                        className="w-full h-full object-contain rounded-xl"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src =
+                            "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=spandan2026@upi";
+                        }}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-xs font-mono text-cyan-300">
+                        UPI ID: spandan2026@upi
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        Amount to Pay:{" "}
+                        <span className="font-bold text-white">
+                          ₹
+                          {formData.tier === "white-rabbit"
+                            ? 350
+                            : formData.tier === "mad-hatter"
+                              ? 500
+                              : 750}
+                        </span>
+                      </p>
+                    </div>
+
+                    {/* UTR Input */}
+                    <div className="text-left space-y-1 pt-2">
+                      <label className="text-[11px] text-slate-300 font-semibold block">
+                        12-Digit UTR / UPI Reference Number{" "}
+                        <span className="text-rose-400">*</span>
+                      </label>
+                      <input
+                        required
+                        type="text"
+                        placeholder="e.g. 423189056123"
+                        value={utrNumber}
+                        onChange={(e) => setUtrNumber(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-cyan-400"
+                      />
                     </div>
                   </div>
 
