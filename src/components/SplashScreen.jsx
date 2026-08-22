@@ -9,6 +9,8 @@ const loadingPhrases = [
   "Welcome to the Enchanted Reverie."
 ];
 
+const RING_COUNT = 7;
+
 export default function SplashScreen({ onComplete }) {
   const [progress, setProgress] = useState(0);
   const [phraseIndex, setPhraseIndex] = useState(0);
@@ -43,7 +45,7 @@ export default function SplashScreen({ onComplete }) {
         setIsFadingOut(true);
         setTimeout(() => {
           onComplete();
-        }, 600); // Wait for fade-out transition
+        }, 750); // Wait for the "fall through" transition
       }, 300);
 
       return () => clearTimeout(timeout);
@@ -54,61 +56,91 @@ export default function SplashScreen({ onComplete }) {
     setIsFadingOut(true);
     setTimeout(() => {
       onComplete();
-    }, 300);
+    }, 750);
   };
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#07040d] px-6 text-center transition-opacity duration-700 ${
-        isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0b1d18] px-6 text-center overflow-hidden transition-all ease-in ${
+        isFadingOut
+          ? 'opacity-0 scale-[2.6] blur-md duration-700'
+          : 'opacity-100 scale-100 duration-300'
       }`}
     >
-      {/* Background glow orb */}
-      <div className="absolute w-72 h-72 md:w-96 md:h-96 rounded-full bg-gradient-to-tr from-fuchsia-600/20 via-cyan-500/10 to-transparent blur-3xl -z-10 animate-pulse" />
-
-      {/* Floating Cheshire Logo */}
-      <div className="relative mb-8 group">
-        <img
-          src="/logo.png"
-          alt="Spandan Logo"
-          className="h-28 md:h-36 w-auto object-contain drop-shadow-[0_0_25px_rgba(217,70,239,0.5)] transition-transform duration-700 hover:scale-105"
-          onError={(e) => {
-            e.target.style.display = 'none';
-          }}
-        />
+      {/* Rabbit-hole tunnel — concentric rings pulling inward */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center [perspective:600px]">
+        {Array.from({ length: RING_COUNT }).map((_, i) => (
+          <span
+            key={i}
+            className={`tunnel-ring absolute rounded-full border-2 ${
+              i % 2 === 0 ? 'border-lantern-400/40' : 'border-mist-400/30'
+            }`}
+            style={{
+              width: '90vmin',
+              height: '90vmin',
+              animationDelay: `${(i * 2.4) / RING_COUNT}s`,
+            }}
+          />
+        ))}
+        {/* falling rabbit cue */}
+        <span className="falling-rabbit absolute text-3xl md:text-4xl" aria-hidden="true">
+          🐇
+        </span>
       </div>
 
-      {/* Title & Tagline */}
-      <h1 className="text-3xl md:text-5xl font-black tracking-wider bg-gradient-to-r from-fuchsia-400 via-rose-300 to-cyan-400 bg-clip-text text-transparent">
-        SPANDAN 2026
-      </h1>
-      <p className="text-xs md:text-sm font-serif italic text-fuchsia-300/80 tracking-widest mt-1">
-        The Enchanted Reverie
-      </p>
+      {/* Background glow orb */}
+      <div className="absolute w-72 h-72 md:w-96 md:h-96 rounded-full bg-gradient-to-tr from-lantern-600/20 via-mist-500/10 to-transparent blur-3xl -z-10 animate-pulse" />
+
+      {/* Drifting fireflies */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        {[12, 28, 47, 63, 79, 88].map((left, i) => (
+          <span
+            key={i}
+            className="firefly absolute w-1.5 h-1.5 rounded-full bg-lantern-300 shadow-[0_0_8px_3px_rgba(240,169,60,0.7)]"
+            style={{ left: `${left}%`, top: `${(i * 41 + 15) % 90}%`, animationDelay: `${i * 0.7}s`, animationDuration: `${5 + (i % 3)}s` }}
+          />
+        ))}
+      </div>
+
+      {/* Logo mark */}
+      <div className="relative mb-4 group z-10">
+        <img
+          src="/logo-mark.png"
+          alt="Spandan '26 — The Enchanted Reverie"
+          className="h-24 md:h-32 w-auto object-contain drop-shadow-[0_0_25px_rgba(240,169,60,0.5)] transition-transform duration-700 hover:scale-105"
+          onError={(e) => {
+            e.target.style.display = 'none';
+            e.target.nextSibling.style.display = 'block';
+          }}
+        />
+        <h1 className="hidden font-display text-4xl md:text-6xl font-black tracking-wide text-parchment-50 glow-text">
+          Spandan 2026
+        </h1>
+      </div>
 
       {/* Dynamic Fever Dream Phrase */}
-      <div className="h-6 mt-8">
-        <p className="text-xs tracking-wide text-slate-400 animate-fade">
+      <div className="h-6 mt-4 z-10">
+        <p className="text-xs tracking-wide text-parchment-100/60 animate-fade">
           {loadingPhrases[phraseIndex]}
         </p>
       </div>
 
       {/* Progress Bar Container */}
-      <div className="w-64 md:w-80 h-1.5 bg-white/10 rounded-full overflow-hidden mt-4 border border-white/5 relative">
+      <div className="w-64 md:w-80 h-1.5 bg-white/10 rounded-full overflow-hidden mt-4 border border-lantern-500/15 relative z-10">
         <div
-          className="h-full bg-gradient-to-r from-fuchsia-500 via-rose-500 to-cyan-400 rounded-full transition-all duration-75 ease-out shadow-[0_0_12px_rgba(6,182,212,0.8)]"
+          className="h-full bg-gradient-to-r from-lantern-500 via-toadstool-500 to-mist-400 rounded-full transition-all duration-75 ease-out shadow-[0_0_12px_rgba(63,167,154,0.7)]"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      <div className="text-[11px] font-mono text-cyan-400/80 mt-2">
+      <div className="text-[11px] font-mono text-mist-300/80 mt-2 z-10">
         {progress}%
       </div>
 
       {/* Skip Button */}
       <button
         onClick={handleSkip}
-        className="absolute bottom-8 text-xs text-slate-500 hover:text-slate-300 border border-white/5 hover:border-white/20 px-4 py-1.5 rounded-full transition"
+        className="absolute bottom-8 text-xs text-parchment-100/50 hover:text-parchment-100 border border-lantern-500/15 hover:border-lantern-400/40 px-4 py-1.5 rounded-full transition z-10"
       >
         Skip Intro ➔
       </button>

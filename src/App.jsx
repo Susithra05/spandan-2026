@@ -25,47 +25,119 @@ const SparklesIcon = () => (
   </svg>
 );
 
+// Pocket watch — for festival dates
 const CalendarIcon = () => (
-  <svg
-    className="w-6 h-6 text-cyan-400 mb-2"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-    <line x1="16" x2="16" y1="2" y2="6" />
-    <line x1="8" x2="8" y1="2" y2="6" />
-    <line x1="3" x2="21" y1="10" y2="10" />
+  <svg className="w-7 h-7 text-mist-300 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <path d="M12 2.5v1.4M9.5 1.8h5" strokeLinecap="round" />
+    <circle cx="12" cy="13" r="8.2" />
+    <circle cx="12" cy="13" r="0.9" fill="currentColor" stroke="none" />
+    <path d="M12 13 9 11.3M12 13l3.3-4.3" strokeLinecap="round" />
+    <path d="M4.2 6.3 6 8" strokeLinecap="round" />
+    <path d="M19.8 6.3 18 8" strokeLinecap="round" />
   </svg>
 );
 
+// Toadstool signpost — for host venue
 const MapPinIcon = () => (
-  <svg
-    className="w-6 h-6 text-fuchsia-400 mb-2"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
-    <circle cx="12" cy="10" r="3" />
+  <svg className="w-7 h-7 text-toadstool-400 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <path d="M12 3c-4 0-6.5 2.1-6.5 4.3 0 1 .9 1.5 1.9 1.2C8.5 8 10 7.6 12 7.6s3.5.4 4.6.9c1 .3 1.9-.2 1.9-1.2C18.5 5.1 16 3 12 3Z" strokeLinejoin="round" />
+    <circle cx="8.5" cy="6.1" r="0.5" fill="currentColor" stroke="none" />
+    <circle cx="14.5" cy="5.6" r="0.5" fill="currentColor" stroke="none" />
+    <path d="M12 8v3" strokeLinecap="round" />
+    <path d="M12 11c-2.4 0-4.3 1.7-4.3 3.9 0 3 2 6.4 4.3 7.6 2.3-1.2 4.3-4.6 4.3-7.6 0-2.2-1.9-3.9-4.3-3.9Z" strokeLinejoin="round" />
   </svg>
 );
 
+// Trio of card suits — for participation / footfall
 const UsersIcon = () => (
-  <svg
-    className="w-6 h-6 text-amber-400 mb-2"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  <svg className="w-7 h-7 mb-2" viewBox="0 0 24 24" fill="none">
+    <path className="text-toadstool-400" fill="currentColor" d="M12 5c-1.6 0-2.9 1.3-2.9 2.9 0 1.9 1.8 3.3 4.5 5.6C16.3 11.2 18 9.8 18 7.9 18 6.3 16.7 5 15.1 5c-1 0-1.9.5-2.4 1.3C12.2 5.5 12.1 5 12 5Z" opacity="0.55" />
+    <path className="text-mist-300" fill="currentColor" d="M6 12.5 3 18.5h2.2L4 21h4l-1.2-2.5H9L6 12.5Z" opacity="0.9" />
+    <path className="text-lantern-300" fill="currentColor" d="M18 12.5l-3 6h2.2L16 21h4l-1.2-2.5H21l-3-6Z" opacity="0.9" />
   </svg>
+);
+
+// Drifting firefly field — decorative ambient layer
+const FireflyField = ({ count = 6 }) => (
+  <div className="pointer-events-none absolute inset-0 overflow-hidden">
+    {Array.from({ length: count }).map((_, i) => (
+      <span
+        key={i}
+        className="firefly absolute w-1.5 h-1.5 rounded-full bg-lantern-300 shadow-[0_0_8px_3px_rgba(240,169,60,0.7)]"
+        style={{
+          left: `${(i * 37 + 8) % 100}%`,
+          top: `${(i * 53 + 12) % 100}%`,
+          animationDelay: `${i * 0.9}s`,
+          animationDuration: `${5 + (i % 4)}s`,
+        }}
+      />
+    ))}
+  </div>
+);
+
+// Mushroom silhouette cluster — corner decoration
+const MushroomCluster = ({ className = "" }) => (
+  <svg className={className} viewBox="0 0 160 120" fill="none">
+    <g opacity="0.5">
+      <ellipse cx="30" cy="55" rx="26" ry="15" fill="currentColor" />
+      <rect x="22" y="55" width="16" height="35" rx="6" fill="currentColor" opacity="0.85" />
+      <ellipse cx="95" cy="35" rx="18" ry="11" fill="currentColor" />
+      <rect x="89" y="35" width="12" height="26" rx="5" fill="currentColor" opacity="0.85" />
+      <ellipse cx="130" cy="60" rx="22" ry="13" fill="currentColor" />
+      <rect x="122" y="60" width="14" height="30" rx="5" fill="currentColor" opacity="0.85" />
+    </g>
+  </svg>
+);
+
+// Curling vine with small leaves — edge decoration
+const VineSwirl = ({ className = "" }) => (
+  <svg className={className} viewBox="0 0 300 60" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <path d="M2 30c20-20 40 20 60 0s40-20 60 0 40 20 60 0 40-20 60 0 40 20 56 0" strokeLinecap="round" opacity="0.5" />
+    <path d="M32 28c4-8 12-8 14 0" opacity="0.5" />
+    <path d="M92 30c4-8 12-8 14 0" opacity="0.5" />
+    <path d="M152 28c4-8 12-8 14 0" opacity="0.5" />
+    <path d="M212 30c4-8 12-8 14 0" opacity="0.5" />
+  </svg>
+);
+
+// Cheshire cat grin — subtle brand callback
+const CheshireGrin = ({ className = "" }) => (
+  <svg className={className} viewBox="0 0 120 60" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+    <path d="M8 14c14 30 90 30 104 0" opacity="0.55" />
+    <path d="M22 20l9 8M98 20l-9 8M42 26l6 10M78 26l-6 10M60 28v12" opacity="0.4" />
+    <circle cx="30" cy="8" r="2.5" fill="currentColor" stroke="none" opacity="0.55" />
+    <circle cx="90" cy="8" r="2.5" fill="currentColor" stroke="none" opacity="0.55" />
+  </svg>
+);
+
+// Scattered faint playing-card suits
+const FloatingSuits = () => (
+  <div className="pointer-events-none absolute inset-0 overflow-hidden select-none">
+    {[
+      { s: "♣", l: "4%", t: "12%", r: -12, sz: "3rem" },
+      { s: "♥", l: "90%", t: "20%", r: 10, sz: "2.5rem" },
+      { s: "♦", l: "8%", t: "78%", r: 8, sz: "2.75rem" },
+      { s: "♠", l: "93%", t: "70%", r: -8, sz: "3.25rem" },
+    ].map((c, i) => (
+      <span
+        key={i}
+        className="absolute text-lantern-400/10"
+        style={{ left: c.l, top: c.t, fontSize: c.sz, transform: `rotate(${c.r}deg)` }}
+      >
+        {c.s}
+      </span>
+    ))}
+  </div>
+);
+
+// Full section background dressing: corner mushrooms + top vine + faint suits
+const SectionScenery = ({ suits = true }) => (
+  <div className="pointer-events-none absolute inset-0 overflow-hidden -z-10">
+    <VineSwirl className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] max-w-3xl h-10 text-lantern-500/40" />
+    <MushroomCluster className="absolute -bottom-4 -left-6 w-36 h-28 text-toadstool-700/40" />
+    <MushroomCluster className="absolute -bottom-6 -right-8 w-40 h-32 text-mist-800/40 scale-x-[-1]" />
+    {suits && <FloatingSuits />}
+  </div>
 );
 
 const CheckIcon = () => (
@@ -116,6 +188,7 @@ export default function App() {
   };
 
   const [activeTab, setActiveTab] = useState("home");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [user, setUser] = useState(null);
   const [authEmail, setAuthEmail] = useState("");
@@ -241,37 +314,37 @@ export default function App() {
       : eventsList.filter((ev) => ev.category === selectedCategory);
 
   return (
-    <div className="min-h-screen bg-[#07040d] text-slate-100 flex flex-col selection:bg-fuchsia-500 selection:text-white">
+    <div className="min-h-screen bg-[#122519] text-slate-100 flex flex-col selection:bg-lantern-500 selection:text-parchment-50">
       {/* CONDITIONAL SPLASH SCREEN */}
       {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
 
       {/* NAVBAR */}
-      <header className="sticky top-0 z-50 bg-[#0c0817]/90 backdrop-blur-md border-b border-fuchsia-950/60">
+      <header className="sticky top-0 z-50 bg-canopy-950/92 backdrop-blur-md border-b-2 border-lantern-500/20">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-3 cursor-pointer group"
             onClick={() => setActiveTab("home")}
           >
             <img
-              src="/logo.png"
+              src="/logo-icon.png"
               alt="Spandan Logo"
-              className="h-12 w-auto object-contain"
+              className="h-12 w-auto object-contain transition-transform duration-300 group-hover:-rotate-3"
               onError={(e) => {
                 e.target.style.display = "none";
               }}
             />
             <div>
-              <div className="font-extrabold tracking-wider text-xl bg-gradient-to-r from-fuchsia-400 via-rose-300 to-cyan-400 bg-clip-text text-transparent">
-                SPANDAN '26
+              <div className="font-display font-bold tracking-wide text-xl text-lantern-200">
+                Spandan <span className="text-mist-300">'26</span>
               </div>
-              <div className="text-[10px] text-fuchsia-300/70 tracking-widest uppercase">
+              <div className="font-hand text-base text-toadstool-300/90 -mt-1 leading-none">
                 The Enchanted Reverie
               </div>
             </div>
           </div>
 
           {/* Navigation Items */}
-          <nav className="hidden md:flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 shadow-inner">
+          <nav className="hidden md:flex items-center gap-1 bg-canopy-900/60 border border-lantern-500/15 rounded-full px-4 py-1.5 shadow-inner">
             {[
               "home",
               "about",
@@ -285,8 +358,8 @@ export default function App() {
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition capitalize ${
                   activeTab === tab
-                    ? "bg-gradient-to-r from-fuchsia-600 to-cyan-600 text-white shadow-lg"
-                    : "text-slate-300 hover:text-white hover:bg-white/5"
+                    ? "bg-lantern-400 text-canopy-950 font-bold shadow-md"
+                    : "text-parchment-100/80 hover:text-lantern-200 hover:bg-white/5"
                 }`}
               >
                 {tab}
@@ -295,10 +368,10 @@ export default function App() {
           </nav>
 
           {/* User Auth Action */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {user ? (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-fuchsia-300 hidden sm:inline">
+                <span className="text-xs text-lantern-300 hidden sm:inline">
                   {user.email}
                 </span>
                 <button
@@ -311,13 +384,53 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setActiveTab("auth")}
-                className="px-5 py-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold shadow-md hover:brightness-110 transition"
+                className="px-4 sm:px-5 py-2 rounded-full bg-mist-500 text-canopy-950 text-xs font-bold shadow-md hover:bg-mist-400 transition"
               >
                 Login / Sign Up
               </button>
             )}
+
+            {/* Mobile menu toggle */}
+            <button
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label="Toggle menu"
+              className="md:hidden w-10 h-10 flex flex-col items-center justify-center gap-1.5 rounded-full border border-lantern-500/20 bg-canopy-900/60"
+            >
+              <span className={`block w-4 h-0.5 bg-lantern-200 rounded transition-transform ${mobileMenuOpen ? "rotate-45 translate-y-2" : ""}`} />
+              <span className={`block w-4 h-0.5 bg-lantern-200 rounded transition-opacity ${mobileMenuOpen ? "opacity-0" : ""}`} />
+              <span className={`block w-4 h-0.5 bg-lantern-200 rounded transition-transform ${mobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
+            </button>
           </div>
         </div>
+
+        {/* Mobile dropdown nav */}
+        {mobileMenuOpen && (
+          <nav className="md:hidden border-t border-lantern-500/15 bg-canopy-950/97 backdrop-blur-md px-4 py-3 flex flex-col gap-1">
+            {[
+              "home",
+              "about",
+              "events",
+              "schedule",
+              "registration",
+              "contact",
+            ].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setMobileMenuOpen(false);
+                }}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition capitalize text-left ${
+                  activeTab === tab
+                    ? "bg-lantern-400 text-canopy-950 font-bold shadow-md"
+                    : "text-parchment-100/80 hover:text-lantern-200 hover:bg-white/5"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </nav>
+        )}
       </header>
 
       {/* BODY CONTENT */}
@@ -326,27 +439,44 @@ export default function App() {
         {activeTab === "home" && (
           <div>
             <section className="relative min-h-[85vh] flex items-center justify-center text-center px-4 overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-fuchsia-900/20 via-[#07040d]/80 to-[#07040d] -z-10" />
+              {/* Illustrated forest backdrop */}
+              <div
+                className="absolute inset-0 z-0 bg-cover bg-center opacity-70"
+                style={{ backgroundImage: "url('/theme-scenery.jpg')" }}
+              />
+              <div className="absolute inset-0 z-0 bg-[#0b1d18]/60" />
+              <div className="absolute inset-x-0 bottom-0 h-40 z-0 bg-gradient-to-t from-[#0b1d18] to-transparent" />
+              <FireflyField count={8} />
 
-              <div className="max-w-4xl mx-auto space-y-6 pt-10">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-300 text-xs font-medium tracking-wide">
-                  <SparklesIcon /> JIPMER PONDICHERRY • ANNUAL CULTURAL & SPORTS
-                  FEST
+              <div className="relative z-10 max-w-4xl mx-auto space-y-6 pt-10">
+                <div className="stamp-badge inline-flex items-center gap-2 px-4 py-1.5 rounded-full border-2 border-dashed border-lantern-400/40 bg-canopy-950/50 backdrop-blur-sm text-lantern-200 text-sm tracking-wide -rotate-1">
+                  <SparklesIcon /> JIPMER Pondicherry • Annual Cultural &amp; Sports Fest
                 </div>
 
-                <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight">
-                  <span className="bg-gradient-to-b from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-                    SPANDAN 2026
-                  </span>
-                  <span className="block text-2xl md:text-4xl font-serif italic text-fuchsia-400 mt-2 font-normal">
-                    The Enchanted Reverie
-                  </span>
-                </h1>
+                <div className="flex justify-center px-4">
+                  <img
+                    src="/logo-mark.png"
+                    alt="Spandan '26 — The Enchanted Reverie"
+                    className="w-full max-w-xs sm:max-w-md md:max-w-lg h-auto drop-shadow-[0_0_30px_rgba(240,169,60,0.35)]"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                      e.target.nextSibling.style.display = "block";
+                    }}
+                  />
+                  <h1 className="hidden">
+                    <span className="block text-6xl md:text-8xl font-black text-parchment-50 glow-text">
+                      Spandan 2026
+                    </span>
+                    <span className="font-hand block text-3xl md:text-5xl text-lantern-300 mt-1">
+                      ~ The Enchanted Reverie ~
+                    </span>
+                  </h1>
+                </div>
 
                 {/* Real-Time Live Countdown */}
                 <CountdownTimer targetDate={festDetails.targetDate} />
 
-                <p className="text-base md:text-lg text-slate-300 max-w-2xl mx-auto font-light leading-relaxed">
+                <p className="text-base md:text-lg text-parchment-100/80 max-w-2xl mx-auto font-medium leading-relaxed">
                   "{festDetails.tagline}" Step into a fever dream where clocks
                   lose track of time, and the ordinary transforms into the
                   extraordinary.
@@ -355,13 +485,13 @@ export default function App() {
                 <div className="flex flex-wrap justify-center gap-4 pt-4">
                   <button
                     onClick={() => setActiveTab("registration")}
-                    className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-fuchsia-600 via-rose-600 to-cyan-500 font-bold text-sm tracking-wide shadow-[0_0_25px_rgba(217,70,239,0.4)] hover:brightness-110 transition"
+                    className="px-8 py-3.5 rounded-full bg-lantern-400 text-canopy-950 font-bold text-sm tracking-wide shadow-[0_6px_0_0_rgba(166,92,27,0.9)] hover:shadow-[0_3px_0_0_rgba(166,92,27,0.9)] hover:translate-y-[3px] active:translate-y-[6px] active:shadow-none transition-all"
                   >
-                    Suit Up & Register
+                    🐇 Suit Up &amp; Register
                   </button>
                   <button
                     onClick={() => setActiveTab("events")}
-                    className="px-8 py-3.5 rounded-xl border border-white/20 bg-white/5 font-semibold text-sm hover:bg-white/10 transition"
+                    className="px-8 py-3.5 rounded-full border-2 border-mist-400/50 bg-mist-500/10 text-mist-200 font-bold text-sm hover:bg-mist-500/20 hover:-rotate-1 transition"
                   >
                     Explore Events
                   </button>
@@ -371,28 +501,28 @@ export default function App() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-12 text-left">
                   <div className="glow-card p-5 rounded-2xl">
                     <CalendarIcon />
-                    <div className="text-xs text-slate-400 uppercase tracking-wider">
+                    <div className="text-xs text-lantern-200/70 uppercase tracking-wider font-semibold">
                       Festival Dates
                     </div>
-                    <div className="text-lg font-bold text-slate-100">
+                    <div className="text-lg font-bold text-parchment-50">
                       {festDetails.dates}
                     </div>
                   </div>
                   <div className="glow-card p-5 rounded-2xl">
                     <MapPinIcon />
-                    <div className="text-xs text-slate-400 uppercase tracking-wider">
+                    <div className="text-xs text-lantern-200/70 uppercase tracking-wider font-semibold">
                       Host Venue
                     </div>
-                    <div className="text-lg font-bold text-slate-100">
+                    <div className="text-lg font-bold text-parchment-50">
                       {festDetails.venue}
                     </div>
                   </div>
                   <div className="glow-card p-5 rounded-2xl">
                     <UsersIcon />
-                    <div className="text-xs text-slate-400 uppercase tracking-wider">
+                    <div className="text-xs text-lantern-200/70 uppercase tracking-wider font-semibold">
                       Participation
                     </div>
-                    <div className="text-lg font-bold text-slate-100">
+                    <div className="text-lg font-bold text-parchment-50">
                       5000+ Footfall Expected
                     </div>
                   </div>
@@ -404,13 +534,15 @@ export default function App() {
 
         {/* TAB 2: ABOUT */}
         {activeTab === "about" && (
-          <section className="max-w-5xl mx-auto px-4 py-16 space-y-12">
+          <section className="relative isolate max-w-5xl mx-auto px-4 py-16 space-y-12">
+            <SectionScenery />
             <div className="text-center space-y-4">
-              <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-cyan-400">
+              <h2 className="font-display text-4xl md:text-5xl font-black text-lantern-200 glow-text">
                 About Spandan
               </h2>
-              <p className="text-slate-300 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
-                Spandan is South India’s premier intercollegiate medical,
+              <div className="vine-divider w-40 mx-auto" />
+              <p className="text-parchment-100/75 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
+                Spandan is South India's premier intercollegiate medical,
                 cultural, and sports festival, welcoming thousands of students
                 to the historic halls of JIPMER Pondicherry.
               </p>
@@ -418,38 +550,38 @@ export default function App() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div className="glow-card p-6 rounded-2xl">
-                <div className="text-3xl font-extrabold text-fuchsia-400">
+                <div className="text-3xl font-display font-black text-lantern-300">
                   15+
                 </div>
-                <div className="text-xs text-slate-400 mt-1">
+                <div className="text-xs text-parchment-100/60 mt-1">
                   Years of Legacy
                 </div>
               </div>
               <div className="glow-card p-6 rounded-2xl">
-                <div className="text-3xl font-extrabold text-cyan-400">
+                <div className="text-3xl font-display font-black text-mist-300">
                   5000+
                 </div>
-                <div className="text-xs text-slate-400 mt-1">Participants</div>
+                <div className="text-xs text-parchment-100/60 mt-1">Participants</div>
               </div>
               <div className="glow-card p-6 rounded-2xl">
-                <div className="text-3xl font-extrabold text-amber-400">
+                <div className="text-3xl font-display font-black text-lantern-300">
                   100+
                 </div>
-                <div className="text-xs text-slate-400 mt-1">
+                <div className="text-xs text-parchment-100/60 mt-1">
                   Colleges Across India
                 </div>
               </div>
               <div className="glow-card p-6 rounded-2xl">
-                <div className="text-3xl font-extrabold text-rose-400">50+</div>
-                <div className="text-xs text-slate-400 mt-1">Competitions</div>
+                <div className="text-3xl font-display font-black text-toadstool-300">50+</div>
+                <div className="text-xs text-parchment-100/60 mt-1">Competitions</div>
               </div>
             </div>
 
-            <div className="glow-card p-8 rounded-3xl space-y-4 border border-fuchsia-500/20">
-              <h3 className="text-xl font-bold text-slate-100">
+            <div className="glow-card p-8 rounded-3xl space-y-4">
+              <h3 className="text-xl font-display font-bold text-parchment-50">
                 The 2026 Concept: The Enchanted Reverie
               </h3>
-              <p className="text-slate-300 text-sm leading-relaxed">
+              <p className="text-parchment-100/75 text-sm leading-relaxed">
                 Inspired by the surrealism of fever dreams and the whimsical
                 paradoxes of Alice in Wonderland, this year's edition turns
                 every corridor, stage, and stadium into an ethereal playground.
@@ -462,9 +594,10 @@ export default function App() {
 
         {/* TAB 3: EVENTS */}
         {activeTab === "events" && (
-          <section className="max-w-7xl mx-auto px-4 py-16 space-y-8">
+          <section className="relative isolate max-w-7xl mx-auto px-4 py-16 space-y-8">
+            <SectionScenery suits={false} />
             <div className="text-center space-y-2">
-              <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-cyan-400">
+              <h2 className="font-display text-4xl md:text-5xl font-black text-lantern-200 glow-text">
                 Festival Events
               </h2>
               <p className="text-slate-400 text-sm">
@@ -480,7 +613,7 @@ export default function App() {
                   onClick={() => setSelectedCategory(cat.id)}
                   className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${
                     selectedCategory === cat.id
-                      ? "bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+                      ? "bg-mist-500 text-canopy-950 shadow-[0_0_15px_rgba(63,167,154,0.4)]"
                       : "bg-white/5 text-slate-300 hover:bg-white/10"
                   }`}
                 >
@@ -497,10 +630,10 @@ export default function App() {
                   className="glow-card p-6 rounded-2xl flex flex-col justify-between space-y-4"
                 >
                   <div>
-                    <div className="text-[10px] uppercase font-bold tracking-widest text-fuchsia-400 mb-1">
+                    <div className="text-[10px] uppercase font-bold tracking-widest text-lantern-400 mb-1">
                       {ev.category.replace("-", " ")}
                     </div>
-                    <h3 className="text-lg font-bold text-white">{ev.title}</h3>
+                    <h3 className="text-lg font-bold text-parchment-50">{ev.title}</h3>
                     <p className="text-xs text-slate-300 mt-2 leading-relaxed">
                       {ev.desc}
                     </p>
@@ -515,7 +648,7 @@ export default function App() {
                         handleEventToggle(ev.id);
                         setActiveTab("registration");
                       }}
-                      className="text-cyan-400 hover:text-cyan-300 font-semibold"
+                      className="text-mist-400 hover:text-mist-300 font-semibold"
                     >
                       + Select & Register
                     </button>
@@ -528,12 +661,14 @@ export default function App() {
 
         {/* TAB: SCHEDULE */}
         {activeTab === "schedule" && (
-          <section className="max-w-5xl mx-auto px-4 py-16 space-y-10">
+          <section className="relative isolate max-w-5xl mx-auto px-4 py-16 space-y-10">
+            <SectionScenery />
             <div className="text-center space-y-2">
-              <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-cyan-400">
+              <h2 className="font-display text-4xl md:text-5xl font-black text-lantern-200 glow-text">
                 Festival Schedule
               </h2>
-              <p className="text-slate-400 text-sm">
+              <div className="vine-divider w-40 mx-auto" />
+              <p className="text-parchment-100/60 text-sm pt-2">
                 October 26 – October 31, 2026 • 6 Days of Pure Reverie
               </p>
             </div>
@@ -542,26 +677,28 @@ export default function App() {
               {scheduleData.map((dayPlan, idx) => (
                 <div
                   key={idx}
-                  className="glow-card p-6 rounded-3xl border border-white/10 hover:border-cyan-500/40 transition duration-300 space-y-4"
+                  className="glow-card p-6 rounded-3xl hover:border-mist-400/50 transition duration-300 space-y-4"
                 >
-                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center justify-between border-b border-lantern-500/10 pb-3">
                     <div>
-                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30">
+                      <span className="stamp-badge inline-block px-2.5 py-0.5 rounded-full text-sm bg-lantern-500/20 text-lantern-300 border border-lantern-500/30">
                         {dayPlan.day}
                       </span>
-                      <h3 className="text-lg font-black text-white mt-1">
+                      <h3 className="text-lg font-display font-black text-parchment-50 mt-1">
                         {dayPlan.title}
                       </h3>
                     </div>
-                    <div className="text-xs font-mono text-cyan-400 font-semibold bg-cyan-950/40 px-3 py-1 rounded-xl border border-cyan-800/40">
+                    <div className="text-xs font-mono text-mist-300 font-semibold bg-mist-950/40 px-3 py-1 rounded-xl border border-mist-800/40">
                       {dayPlan.date}
                     </div>
                   </div>
 
-                  <ul className="space-y-2.5 text-xs text-slate-300">
+                  <ul className="space-y-2.5 text-xs text-parchment-100/70">
                     {dayPlan.highlights.map((item, hIdx) => (
                       <li key={hIdx} className="flex items-start gap-2.5">
-                        <span className="text-cyan-400 mt-0.5 text-sm">✦</span>
+                        <span className="text-toadstool-300 mt-0.5 text-sm">
+                          {["♠", "♥", "♦", "♣"][hIdx % 4]}
+                        </span>
                         <span>{item}</span>
                       </li>
                     ))}
@@ -574,12 +711,14 @@ export default function App() {
 
         {/* TAB 4: REGISTRATION */}
         {activeTab === "registration" && (
-          <section className="max-w-6xl mx-auto px-4 py-16 space-y-12">
+          <section className="relative isolate max-w-6xl mx-auto px-4 py-16 space-y-12">
+            <SectionScenery suits={false} />
             <div className="text-center space-y-2">
-              <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-rose-400">
-                Delegate Registration & Passes
+              <h2 className="font-display text-4xl md:text-5xl font-black text-toadstool-200 glow-text">
+                Delegate Registration &amp; Passes
               </h2>
-              <p className="text-slate-400 text-sm">
+              <div className="vine-divider w-40 mx-auto" />
+              <p className="text-parchment-100/60 text-sm pt-2">
                 Choose your entry tier to enter the Reverie
               </p>
             </div>
@@ -591,25 +730,29 @@ export default function App() {
                   key={tier.id}
                   className={`p-6 rounded-3xl border bg-gradient-to-b ${tier.color} backdrop-blur-md flex flex-col justify-between space-y-6${
                     formData.tier === tier.id
-                      ? "ring-2 ring-white shadow-2xl"
+                      ? "ring-2 ring-lantern-300 shadow-2xl -translate-y-1"
                       : ""
                   }`}
+                  style={{ borderRadius: "24px 24px 24px 24px" }}
                 >
                   <div className="space-y-4">
-                    <div className="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/10">
-                      {tier.tag}
+                    <div className="flex items-center justify-between">
+                      <div className="stamp-badge inline-block px-3 py-1 rounded-full text-sm bg-white/10 text-parchment-50">
+                        {tier.tag}
+                      </div>
+                      <span className="text-3xl leading-none text-parchment-50/90">{tier.suit}</span>
                     </div>
-                    <h3 className="text-2xl font-black text-white">
+                    <h3 className="text-2xl font-display font-black text-parchment-50">
                       {tier.name}
                     </h3>
-                    <div className="text-3xl font-extrabold text-white">
+                    <div className="text-3xl font-display font-extrabold text-parchment-50">
                       ₹{tier.price}{" "}
-                      <span className="text-xs font-normal text-slate-300">
+                      <span className="text-xs font-body font-normal text-parchment-100/60">
                         / delegate
                       </span>
                     </div>
 
-                    <ul className="space-y-2 text-xs text-slate-200">
+                    <ul className="space-y-2 text-xs text-parchment-100/85">
                       {tier.amenities.map((item, idx) => (
                         <li key={idx} className="flex items-start gap-2">
                           <CheckIcon />
@@ -622,10 +765,10 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, tier: tier.id })}
-                    className={`w-full py-3 rounded-xl font-bold text-xs tracking-wider transition ${
+                    className={`w-full py-3 rounded-full font-bold text-xs tracking-wider transition ${
                       formData.tier === tier.id
-                        ? "bg-white text-black shadow-lg"
-                        : "bg-white/10 hover:bg-white/20 text-white"
+                        ? "bg-lantern-400 text-canopy-950 shadow-lg"
+                        : "bg-white/10 hover:bg-white/20 text-parchment-50"
                     }`}
                   >
                     {formData.tier === tier.id
@@ -637,18 +780,18 @@ export default function App() {
             </div>
 
             {/* Registration Form */}
-            <div className="max-w-2xl mx-auto glow-card p-8 rounded-3xl border border-white/10">
-              <h3 className="text-xl font-bold mb-6 text-white text-center">
+            <div className="max-w-2xl mx-auto glow-card p-8 rounded-3xl">
+              <h3 className="text-xl font-display font-bold mb-6 text-parchment-50 text-center">
                 Complete Your Details
               </h3>
 
               {registeredSuccess ? (
                 <div className="text-center py-8 space-y-4">
                   <CheckCircleIcon />
-                  <h4 className="text-xl font-bold text-white">
+                  <h4 className="text-xl font-display font-bold text-parchment-50">
                     Registration Submitted!
                   </h4>
-                  <p className="text-sm text-slate-300">
+                  <p className="text-sm text-parchment-100/70">
                     Your details and selected events have been saved to the
                     Spandan database.
                   </p>
@@ -676,7 +819,7 @@ export default function App() {
                       onChange={(e) =>
                         setFormData({ ...formData, fullName: e.target.value })
                       }
-                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white focus:outline-none focus:border-cyan-400"
+                      className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
                     />
                   </div>
 
@@ -693,7 +836,7 @@ export default function App() {
                         onChange={(e) =>
                           setFormData({ ...formData, phone: e.target.value })
                         }
-                        className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white focus:outline-none focus:border-cyan-400"
+                        className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
                       />
                     </div>
                     <div>
@@ -708,7 +851,7 @@ export default function App() {
                         onChange={(e) =>
                           setFormData({ ...formData, college: e.target.value })
                         }
-                        className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white focus:outline-none focus:border-cyan-400"
+                        className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
                       />
                     </div>
                   </div>
@@ -725,7 +868,7 @@ export default function App() {
                           yearOfStudy: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#140f24] border border-white/10 text-white focus:outline-none focus:border-cyan-400"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#1c3226] border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
                     >
                       <option>1st Year</option>
                       <option>2nd Year</option>
@@ -741,17 +884,17 @@ export default function App() {
                       Select Events to Participate In (
                       {formData.selectedEvents.length} selected):
                     </label>
-                    <div className="max-h-48 overflow-y-auto p-3 rounded-xl bg-black/40 border border-white/10 space-y-2">
+                    <div className="max-h-48 overflow-y-auto p-3 rounded-xl bg-canopy-950/50 border border-white/10 space-y-2">
                       {eventsList.map((ev) => (
                         <label
                           key={ev.id}
-                          className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white"
+                          className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-parchment-50"
                         >
                           <input
                             type="checkbox"
                             checked={formData.selectedEvents.includes(ev.id)}
                             onChange={() => handleEventToggle(ev.id)}
-                            className="rounded border-white/20 text-fuchsia-600 focus:ring-0"
+                            className="rounded border-white/20 text-lantern-600 focus:ring-0"
                           />
                           <span>{ev.title}</span>
                         </label>
@@ -760,9 +903,9 @@ export default function App() {
                   </div>
 
                   {/* UPI QR Payment & UTR Input Block */}
-                  <div className="p-5 rounded-2xl bg-white/5 border border-fuchsia-500/30 text-center space-y-4 my-6">
+                  <div className="p-5 rounded-2xl bg-white/5 border border-lantern-500/30 text-center space-y-4 my-6">
                     <div className="space-y-1">
-                      <h4 className="text-sm font-bold text-fuchsia-300">
+                      <h4 className="text-sm font-bold text-lantern-300">
                         Scan & Pay via Any UPI App
                       </h4>
                       <p className="text-[11px] text-slate-400">
@@ -785,12 +928,12 @@ export default function App() {
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-xs font-mono text-cyan-300">
+                      <p className="text-xs font-mono text-mist-300">
                         UPI ID: spandan2026@upi
                       </p>
                       <p className="text-[11px] text-slate-400">
                         Amount to Pay:{" "}
-                        <span className="font-bold text-white">
+                        <span className="font-bold text-parchment-50">
                           ₹
                           {formData.tier === "white-rabbit"
                             ? 350
@@ -805,7 +948,7 @@ export default function App() {
                     <div className="text-left space-y-1 pt-2">
                       <label className="text-[11px] text-slate-300 font-semibold block">
                         12-Digit UTR / UPI Reference Number{" "}
-                        <span className="text-rose-400">*</span>
+                        <span className="text-toadstool-400">*</span>
                       </label>
                       <input
                         required
@@ -813,7 +956,7 @@ export default function App() {
                         placeholder="e.g. 423189056123"
                         value={utrNumber}
                         onChange={(e) => setUtrNumber(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-cyan-400"
+                        className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-white/10 text-parchment-50 font-mono text-xs focus:outline-none focus:border-mist-400"
                       />
                     </div>
                   </div>
@@ -821,7 +964,7 @@ export default function App() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-fuchsia-600 to-cyan-500 font-bold text-sm text-white shadow-lg hover:brightness-110 transition mt-4 disabled:opacity-50"
+                    className="w-full py-3.5 rounded-full bg-lantern-400 font-bold text-sm text-canopy-950 shadow-[0_5px_0_0_rgba(166,92,27,0.9)] hover:brightness-105 active:translate-y-1 active:shadow-none transition-all mt-4 disabled:opacity-50"
                   >
                     {submitting
                       ? "Saving to Database..."
@@ -835,12 +978,14 @@ export default function App() {
 
         {/* TAB 5: CONTACT */}
         {activeTab === "contact" && (
-          <section className="max-w-5xl mx-auto px-4 py-16 space-y-12">
+          <section className="relative isolate max-w-5xl mx-auto px-4 py-16 space-y-12">
+            <SectionScenery />
             <div className="text-center space-y-2">
-              <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-cyan-400">
+              <h2 className="font-display text-4xl md:text-5xl font-black text-lantern-200 glow-text">
                 Festival Leadership & Contacts
               </h2>
-              <p className="text-slate-400 text-sm">
+              <div className="vine-divider w-40 mx-auto" />
+              <p className="text-parchment-100/60 text-sm pt-2">
                 Reach out to the organizing team for assistance
               </p>
             </div>
@@ -848,15 +993,15 @@ export default function App() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {teamContacts.map((mem, idx) => (
                 <div key={idx} className="glow-card p-6 rounded-2xl space-y-2">
-                  <div className="text-[10px] uppercase font-bold tracking-widest text-fuchsia-400">
+                  <div className="text-[10px] uppercase font-bold tracking-widest text-lantern-400">
                     {mem.role}
                   </div>
-                  <div className="text-lg font-bold text-white">{mem.name}</div>
+                  <div className="text-lg font-bold text-parchment-50">{mem.name}</div>
                   <a
                     href={`https://wa.me/91${mem.phone}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 text-xs font-semibold mt-2"
+                    className="inline-flex items-center gap-2 text-mist-400 hover:text-mist-300 text-xs font-semibold mt-2"
                   >
                     <PhoneIcon /> +91 {mem.phone}
                   </a>
@@ -866,7 +1011,7 @@ export default function App() {
 
             <div className="glow-card p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
               <div>
-                <h4 className="font-bold text-white">
+                <h4 className="font-bold text-parchment-50">
                   Official Fest Instagram
                 </h4>
                 <p className="text-xs text-slate-400">
@@ -877,7 +1022,7 @@ export default function App() {
                 href={`https://instagram.com/${festDetails.instagram}`}
                 target="_blank"
                 rel="noreferrer"
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-xs font-bold flex items-center gap-2"
+                className="px-6 py-2.5 rounded-full bg-berry-600 hover:bg-berry-500 text-parchment-50 text-xs font-bold flex items-center gap-2 transition"
               >
                 <svg
                   className="w-4 h-4"
@@ -898,20 +1043,20 @@ export default function App() {
         {/* TAB 6: AUTH MODAL / SCREEN */}
         {activeTab === "auth" && (
           <section className="max-w-md mx-auto px-4 py-20">
-            <div className="glow-card p-8 rounded-3xl border border-white/10 space-y-6">
+            <div className="glow-card p-8 rounded-3xl space-y-6">
               <div className="text-center space-y-1">
-                <h3 className="text-2xl font-bold text-white">
+                <h3 className="text-2xl font-display font-bold text-parchment-50">
                   {authMode === "login"
                     ? "Login to Spandan"
                     : "Create an Account"}
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-parchment-100/60">
                   Manage your event registrations
                 </p>
               </div>
 
               {authMessage && (
-                <div className="p-3 rounded-xl bg-fuchsia-500/20 border border-fuchsia-500/40 text-xs text-fuchsia-200">
+                <div className="p-3 rounded-xl bg-lantern-500/20 border border-lantern-500/40 text-xs text-lantern-200">
                   {authMessage}
                 </div>
               )}
@@ -927,7 +1072,7 @@ export default function App() {
                     value={authEmail}
                     onChange={(e) => setAuthEmail(e.target.value)}
                     placeholder="you@college.edu"
-                    className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white focus:outline-none focus:border-cyan-400"
+                    className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
                   />
                 </div>
 
@@ -940,7 +1085,7 @@ export default function App() {
                       value={authPassword}
                       onChange={(e) => setAuthPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full px-4 py-2.5 pr-11 rounded-xl bg-black/40 border border-white/10 text-white focus:outline-none focus:border-cyan-400"
+                      className="w-full px-4 py-2.5 pr-11 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
                     />
                     <button
                       type="button"
@@ -993,7 +1138,7 @@ export default function App() {
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 font-bold text-white shadow-md hover:brightness-110 transition"
+                  className="w-full py-3 rounded-full bg-mist-500 font-bold text-parchment-50 shadow-[0_4px_0_0_rgba(23,69,62,0.9)] hover:brightness-105 active:translate-y-1 active:shadow-none transition-all"
                 >
                   {authMode === "login" ? "Sign In" : "Register Account"}
                 </button>
@@ -1005,7 +1150,7 @@ export default function App() {
                     Don't have an account?{" "}
                     <button
                       onClick={() => setAuthMode("signup")}
-                      className="text-cyan-400 font-semibold underline"
+                      className="text-mist-400 font-semibold underline"
                     >
                       Sign up here
                     </button>
@@ -1015,7 +1160,7 @@ export default function App() {
                     Already have an account?{" "}
                     <button
                       onClick={() => setAuthMode("login")}
-                      className="text-cyan-400 font-semibold underline"
+                      className="text-mist-400 font-semibold underline"
                     >
                       Login here
                     </button>
@@ -1028,7 +1173,7 @@ export default function App() {
       </main>
 
       {/* FOOTER */}
-      <footer className="border-t border-white/5 bg-[#05030a] py-8 text-center text-xs text-slate-500">
+      <footer className="border-t border-white/5 bg-[#0e1a14] py-8 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© 2026 Spandan JIPMER. All rights reserved.</p>
           <button
@@ -1036,7 +1181,7 @@ export default function App() {
               setActiveTab("admin");
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
-            className="text-slate-600 hover:text-fuchsia-400 transition font-mono text-[11px]"
+            className="text-slate-600 hover:text-lantern-400 transition font-mono text-[11px]"
           >
             ⚙ Committee Portal
           </button>

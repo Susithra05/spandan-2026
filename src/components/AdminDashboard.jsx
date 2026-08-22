@@ -93,12 +93,12 @@ export default function AdminDashboard() {
   if (!isAuthenticated) {
     return (
       <section className="max-w-md mx-auto px-4 py-20">
-        <div className="glow-card p-8 rounded-3xl border border-fuchsia-500/30 bg-[#0c0817] shadow-[0_0_30px_rgba(217,70,239,0.15)] text-center space-y-6">
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-fuchsia-500/20 border border-fuchsia-500/40 flex items-center justify-center text-xl">
+        <div className="glow-card p-8 rounded-3xl border border-lantern-500/30 bg-[#16281f] shadow-[0_0_30px_rgba(240,169,60,0.2)] text-center space-y-6">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-lantern-500/20 border border-lantern-500/40 flex items-center justify-center text-xl">
             🔒
           </div>
           <div className="space-y-1">
-            <h2 className="text-2xl font-black text-white">Committee Portal</h2>
+            <h2 className="text-2xl font-black text-parchment-50">Committee Portal</h2>
             <p className="text-xs text-slate-400">
               Enter committee passcode to view all registration records.
             </p>
@@ -111,7 +111,7 @@ export default function AdminDashboard() {
                 placeholder="Admin Passcode"
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
-                className="w-full px-4 py-3 pr-11 rounded-xl bg-white/5 border border-white/10 focus:border-fuchsia-500 text-white text-sm outline-none transition"
+                className="w-full px-4 py-3 pr-11 rounded-xl bg-white/5 border border-white/10 focus:border-lantern-500 text-parchment-50 text-sm outline-none transition"
                 required
               />
               <button
@@ -160,11 +160,11 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {errorMsg && <p className="text-xs text-rose-400">{errorMsg}</p>}
+            {errorMsg && <p className="text-xs text-toadstool-400">{errorMsg}</p>}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-fuchsia-600 to-rose-600 font-bold text-sm text-white hover:opacity-90 transition disabled:opacity-50"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-lantern-600 to-toadstool-600 font-bold text-sm text-parchment-50 hover:opacity-90 transition disabled:opacity-50"
             >
               {loading ? "Authenticating..." : "Access Dashboard"}
             </button>
@@ -179,7 +179,7 @@ export default function AdminDashboard() {
       {/* Top Header & Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
         <div>
-          <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-cyan-400">
+          <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-lantern-400 to-mist-400">
             Registration Master Table
           </h2>
           <p className="text-xs text-slate-400 mt-1">
@@ -190,7 +190,7 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-3">
           <button
             onClick={exportToCSV}
-            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)] transition"
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-parchment-50 font-bold text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)] transition"
           >
             <span>📥 Export to CSV (.xlsx)</span>
           </button>
@@ -209,7 +209,7 @@ export default function AdminDashboard() {
           <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
             Total Registrations
           </p>
-          <p className="text-2xl font-black text-white mt-1">
+          <p className="text-2xl font-black text-parchment-50 mt-1">
             {registrations.length}
           </p>
         </div>
@@ -218,7 +218,7 @@ export default function AdminDashboard() {
           <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
             Colleges Represented
           </p>
-          <p className="text-2xl font-black text-cyan-400 mt-1">
+          <p className="text-2xl font-black text-mist-400 mt-1">
             {
               new Set(
                 registrations
@@ -233,7 +233,7 @@ export default function AdminDashboard() {
           <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
             Unique Events Picked
           </p>
-          <p className="text-2xl font-black text-fuchsia-400 mt-1">
+          <p className="text-2xl font-black text-lantern-400 mt-1">
             {
               new Set(
                 registrations.flatMap(
@@ -265,7 +265,7 @@ export default function AdminDashboard() {
           placeholder="Filter by Name, College, Email, Phone, Tier, or UTR..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full md:w-96 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs outline-none focus:border-cyan-500 transition"
+          className="w-full md:w-96 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-parchment-50 text-xs outline-none focus:border-mist-500 transition"
         />
         <span className="text-xs text-slate-400 font-mono hidden md:inline">
           Showing {filteredRegistrations.length} of {registrations.length}
@@ -273,7 +273,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#0c0817]">
+      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#16281f]">
         <table className="w-full text-left text-xs text-slate-300">
           <thead className="bg-white/5 uppercase font-mono text-[10px] text-slate-400 border-b border-white/10">
             <tr>
@@ -296,7 +296,7 @@ export default function AdminDashboard() {
             ) : (
               filteredRegistrations.map((row) => (
                 <tr key={row.id} className="hover:bg-white/[0.02] transition">
-                  <td className="px-4 py-3 font-semibold text-white">
+                  <td className="px-4 py-3 font-semibold text-parchment-50">
                     <div>{row.full_name || "N/A"}</div>
                     <div className="text-[10px] font-normal text-slate-400">
                       {row.email}
@@ -305,7 +305,7 @@ export default function AdminDashboard() {
                   <td className="px-4 py-3">{row.college || "—"}</td>
                   <td className="px-4 py-3 font-mono">{row.phone || "—"}</td>
                   <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-lantern-500/20 text-lantern-300 border border-lantern-500/30">
                       {row.tier || "Standard"}
                     </span>
                   </td>
@@ -315,7 +315,7 @@ export default function AdminDashboard() {
                         row.selected_events.map((ev, i) => (
                           <span
                             key={i}
-                            className="px-1.5 py-0.5 rounded bg-cyan-950/60 text-cyan-300 border border-cyan-800/40 text-[9px]"
+                            className="px-1.5 py-0.5 rounded bg-mist-950/60 text-mist-300 border border-mist-800/40 text-[9px]"
                           >
                             {ev}
                           </span>
@@ -331,10 +331,10 @@ export default function AdminDashboard() {
                   <td className="px-4 py-3 font-mono text-[11px]">
                     {row.utr_number ? (
                       <div className="space-y-1">
-                        <span className="text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40 block w-fit">
+                        <span className="text-mist-300 bg-mist-950/60 px-2 py-0.5 rounded border border-mist-800/40 block w-fit">
                           {row.utr_number}
                         </span>
-                        <span className="text-[9px] text-amber-400 uppercase font-bold block">
+                        <span className="text-[9px] text-lantern-400 uppercase font-bold block">
                           {row.payment_status || "PENDING"}
                         </span>
                       </div>

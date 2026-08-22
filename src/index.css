@@ -1,26 +1,196 @@
 @import "tailwindcss";
 
+@theme {
+  /* Deep enchanted forest — primary dark surface */
+  --color-canopy-50: #eef6f1;
+  --color-canopy-100: #d7ebe0;
+  --color-canopy-200: #afd6c2;
+  --color-canopy-300: #7fbba0;
+  --color-canopy-400: #4f9a7c;
+  --color-canopy-500: #327d62;
+  --color-canopy-600: #24634c;
+  --color-canopy-700: #1d4f3d;
+  --color-canopy-800: #173f31;
+  --color-canopy-900: #122f26;
+  --color-canopy-950: #0b1d18;
+
+  /* Golden lantern glow — primary accent */
+  --color-lantern-50: #fff8ea;
+  --color-lantern-100: #fceac5;
+  --color-lantern-200: #f9d791;
+  --color-lantern-300: #f5c066;
+  --color-lantern-400: #f0a93c;
+  --color-lantern-500: #e0912a;
+  --color-lantern-600: #c97620;
+  --color-lantern-700: #a65c1b;
+  --color-lantern-800: #85481c;
+  --color-lantern-900: #6e3b1b;
+  --color-lantern-950: #3e1f0d;
+
+  /* Misty teal — secondary accent */
+  --color-mist-50: #eefbf8;
+  --color-mist-100: #d2f0ea;
+  --color-mist-200: #a3dcd2;
+  --color-mist-300: #6fc2b6;
+  --color-mist-400: #3fa79a;
+  --color-mist-500: #2e8c7f;
+  --color-mist-600: #256f65;
+  --color-mist-700: #1d584f;
+  --color-mist-800: #17453e;
+  --color-mist-900: #133731;
+  --color-mist-950: #0a211d;
+
+  /* Toadstool red-orange — tertiary accent / CTAs */
+  --color-toadstool-50: #fef0ea;
+  --color-toadstool-100: #fbdcce;
+  --color-toadstool-200: #f5b79f;
+  --color-toadstool-300: #ef8f6c;
+  --color-toadstool-400: #e2643d;
+  --color-toadstool-500: #d0492b;
+  --color-toadstool-600: #b23a20;
+  --color-toadstool-700: #8e2e19;
+  --color-toadstool-800: #6e2413;
+  --color-toadstool-900: #501a0d;
+  --color-toadstool-950: #2e0e07;
+
+  /* Berry plum — rare accent, Red Queen tier */
+  --color-berry-50: #fdf0f5;
+  --color-berry-100: #f7dde7;
+  --color-berry-200: #ebbbcf;
+  --color-berry-300: #d68caa;
+  --color-berry-400: #b85c82;
+  --color-berry-500: #8c3b6e;
+  --color-berry-600: #6e2d57;
+  --color-berry-700: #562244;
+  --color-berry-800: #401934;
+  --color-berry-900: #2e1226;
+  --color-berry-950: #1a0a16;
+
+  /* Parchment cream — light surface / warm text */
+  --color-parchment-50: #fffdf7;
+  --color-parchment-100: #fbf3dc;
+  --color-parchment-200: #f6e7c0;
+  --color-parchment-300: #eed89a;
+  --color-parchment-400: #e2c56c;
+
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-hand: "Caveat", cursive;
+  --font-body: "Quicksand", "system-ui", sans-serif;
+}
+
 @layer base {
   body {
-    background-color: #07040d;
-    color: #f3f4f6;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #122519;
+    color: #f7f2e7;
+    font-family: var(--font-body);
     overflow-x: hidden;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-variation-settings: "SOFT" 40, "WONK" 1;
   }
 }
 
-/* Surreal Glow Utilities */
-.glow-text {
-  text-shadow: 0 0 15px rgba(217, 70, 239, 0.6), 0 0 30px rgba(6, 182, 212, 0.4);
+/* ============ Storybook / Enchanted-Forest utilities ============ */
+
+/* Signature card: lantern-lit forest panel, hand-drawn asymmetric corners */
+.glow-card {
+  background: linear-gradient(160deg, rgba(31, 61, 44, 0.75), rgba(18, 47, 38, 0.85));
+  backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(240, 169, 60, 0.25);
+  border-radius: 28px 14px 28px 14px;
+  position: relative;
+  transition: border-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s ease;
 }
 
-.glow-card {
-  background: rgba(15, 10, 30, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(217, 70, 239, 0.15);
+.glow-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(240, 169, 60, 0.4), transparent 40%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 .glow-card:hover {
-  border-color: rgba(6, 182, 212, 0.5);
-  box-shadow: 0 0 25px rgba(6, 182, 212, 0.15);
+  border-color: rgba(240, 169, 60, 0.55);
+  box-shadow: 0 8px 32px -8px rgba(240, 169, 60, 0.25), 0 0 0 1px rgba(240, 169, 60, 0.1);
+  transform: translateY(-2px);
+}
+
+.glow-text {
+  text-shadow: 0 0 18px rgba(240, 169, 60, 0.55), 0 0 34px rgba(63, 167, 154, 0.3);
+}
+
+/* Wobbly hand-drawn divider used between sections */
+.vine-divider {
+  height: 1px;
+  background-image: repeating-linear-gradient(90deg, rgba(240, 169, 60, 0.4) 0 6px, transparent 6px 14px);
+}
+
+/* Ticket-stamp style label */
+.stamp-badge {
+  font-family: var(--font-hand);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Gentle floating animation for firefly sparks */
+@keyframes firefly-float {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.35; }
+  25% { transform: translate(6px, -14px) scale(1.15); opacity: 0.9; }
+  50% { transform: translate(-4px, -6px) scale(0.9); opacity: 0.5; }
+  75% { transform: translate(8px, 4px) scale(1.05); opacity: 0.8; }
+}
+
+.firefly {
+  animation: firefly-float 6s ease-in-out infinite;
+}
+
+@keyframes gentle-sway {
+  0%, 100% { transform: rotate(-1.5deg); }
+  50% { transform: rotate(1.5deg); }
+}
+
+.sway {
+  animation: gentle-sway 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .firefly, .sway {
+    animation: none;
+  }
+}
+
+/* Rabbit-hole tunnel warp — concentric rings pulling the eye inward */
+@keyframes tunnel-pull {
+  0% { transform: scale(0.05); opacity: 0; border-style: dashed; }
+  12% { opacity: 0.9; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+.tunnel-ring {
+  animation: tunnel-pull 2.4s cubic-bezier(0.3, 0, 0.7, 1) infinite;
+}
+
+@keyframes fall-in-hole {
+  0% { transform: translateY(-140px) rotate(-15deg) scale(0.8); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translateY(60px) rotate(20deg) scale(0.25); opacity: 0; }
+}
+
+.falling-rabbit {
+  animation: fall-in-hole 2.8s ease-in 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tunnel-ring, .falling-rabbit {
+    animation: none;
+    opacity: 0.15;
+  }
 }

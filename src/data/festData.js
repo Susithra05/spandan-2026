@@ -15,7 +15,8 @@ export const tiers = [
     name: "White Rabbit",
     price: 375,
     tag: "Essential Pass",
-    color: "from-blue-600/30 to-cyan-500/20 border-cyan-500/40",
+    suit: "♠",
+    color: "from-mist-700/40 to-canopy-600/30 border-mist-400/40",
     amenities: [
       "Access to all competitive events (excl. Dernier Cri)",
       "Inaugural Night (Day 1)",
@@ -31,7 +32,8 @@ export const tiers = [
     name: "Mad Hatter",
     price: 650,
     tag: "Popular Choice",
-    color: "from-amber-600/30 to-purple-600/20 border-amber-500/40",
+    suit: "♦",
+    color: "from-lantern-600/40 to-berry-700/25 border-lantern-400/40",
     amenities: [
       "Access to all competitive events (excl. Dernier Cri)",
       "Inaugural Night (Day 1)",
@@ -47,7 +49,8 @@ export const tiers = [
     name: "Red Queen",
     price: 850,
     tag: "All-Access Pass",
-    color: "from-rose-700/40 to-fuchsia-700/20 border-rose-500/50",
+    suit: "♥",
+    color: "from-toadstool-700/50 to-berry-700/35 border-toadstool-400/50",
     amenities: [
       "Access to all competitive events (INCL. Dernier Cri)",
       "Inaugural Night (Day 1)",

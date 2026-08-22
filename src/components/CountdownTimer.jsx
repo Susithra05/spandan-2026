@@ -32,7 +32,7 @@ export default function CountdownTimer({ targetDate }) {
 
   if (timeLeft.expired) {
     return (
-      <div className="inline-block px-6 py-3 rounded-2xl bg-fuchsia-600/20 border border-fuchsia-500/40 text-fuchsia-300 font-bold text-sm tracking-widest uppercase animate-pulse">
+      <div className="stamp-badge inline-block px-6 py-3 rounded-full bg-lantern-600/20 border-2 border-dashed border-lantern-500/40 text-lantern-300 text-lg -rotate-1 animate-pulse">
         ✦ The Reverie Has Begun! ✦
       </div>
     );
@@ -46,16 +46,18 @@ export default function CountdownTimer({ targetDate }) {
   ];
 
   return (
-    <div className="flex items-center justify-center gap-2 sm:gap-4 my-6">
+    <div className="flex items-center justify-center gap-2.5 sm:gap-5 my-6">
       {timeUnits.map((unit, index) => (
-        <div 
+        <div
           key={index}
-          className="flex flex-col items-center justify-center w-16 sm:w-20 h-18 sm:h-22 rounded-2xl bg-[#120b22]/90 border border-fuchsia-500/20 shadow-[0_0_15px_rgba(217,70,239,0.15)] backdrop-blur-md"
+          className="relative flex flex-col items-center justify-center w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-[#17291d] border-2 border-lantern-400/50 shadow-[0_0_15px_rgba(240,169,60,0.25),inset_0_0_12px_rgba(0,0,0,0.4)]"
         >
-          <span className="text-xl sm:text-3xl font-black bg-gradient-to-b from-white via-slate-100 to-cyan-300 bg-clip-text text-transparent font-mono">
+          {/* pocket-watch loop nub */}
+          <span className="absolute -top-1.5 w-2.5 h-2.5 rounded-full bg-lantern-400/60 border border-lantern-300/50" />
+          <span className="text-lg sm:text-2xl font-display font-black text-parchment-50 font-mono leading-none">
             {String(unit.value).padStart(2, '0')}
           </span>
-          <span className="text-[9px] sm:text-[10px] text-fuchsia-300/70 uppercase tracking-wider font-semibold mt-1">
+          <span className="text-[8px] sm:text-[9px] text-lantern-300/80 uppercase tracking-wider font-semibold mt-1">
             {unit.label}
           </span>
         </div>
