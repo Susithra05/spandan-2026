@@ -167,30 +167,68 @@
   }
 }
 
-/* Rabbit-hole tunnel warp — concentric rings pulling the eye inward */
-@keyframes tunnel-pull {
-  0% { transform: scale(0.05); opacity: 0; border-style: dashed; }
-  12% { opacity: 0.9; }
-  100% { transform: scale(1.35); opacity: 0; }
+/* ============ Splash: falling into the Rabbit Hole ============ */
+
+.well-zoom {
+  transform-origin: 50% 50%;
+  animation: well-zoom 3.4s cubic-bezier(0.55, 0, 0.85, 1) 1 forwards;
+  will-change: transform;
 }
 
-.tunnel-ring {
-  animation: tunnel-pull 2.4s cubic-bezier(0.3, 0, 0.7, 1) infinite;
+@keyframes well-zoom {
+  0%   { transform: scale(1); }
+  20%  { transform: scale(1.15); }
+  50%  { transform: scale(1.55); }
+  80%  { transform: scale(2.1); }
+  100% { transform: scale(2.7); }
 }
 
-@keyframes fall-in-hole {
-  0% { transform: translateY(-140px) rotate(-15deg) scale(0.8); opacity: 0; }
-  25% { opacity: 1; }
-  100% { transform: translateY(60px) rotate(20deg) scale(0.25); opacity: 0; }
+.scrim-deepen {
+  opacity: 0.28;
+  animation: scrim-deepen 3.4s ease-in 1 forwards;
 }
 
-.falling-rabbit {
-  animation: fall-in-hole 2.8s ease-in 1;
+@keyframes scrim-deepen {
+  0%   { opacity: 0.28; }
+  30%  { opacity: 0.38; }
+  100% { opacity: 0.6; }
+}
+
+.rabbit-fall-sprite {
+  transform-origin: 50% 50%;
+  transform: translate(-50%, -65vh) rotate(-12deg) scale(0.9);
+  will-change: transform, opacity, filter;
+}
+
+.rabbit-fall-small {
+  animation: rabbit-fall-small 3.4s cubic-bezier(0.4, 0, 0.6, 1) 1 forwards;
+}
+
+@keyframes rabbit-fall-small {
+  0%   { transform: translate(-50%, -65vh) rotate(-12deg) scale(0.9); opacity: 0;    filter: blur(0px); }
+  10%  { transform: translate(-50%, -40vh) rotate(-4deg) scale(1);    opacity: 1; }
+  30%  { transform: translate(-50%, -15vh) rotate(4deg) scale(1.05);  opacity: 1; }
+  50%  { transform: translate(-50%, 0vh) rotate(0deg) scale(1.05);    opacity: 1;    filter: blur(0px); }
+  70%  { transform: translate(-50%, 10vh) rotate(-8deg) scale(0.7);   opacity: 0.85; filter: blur(1px); }
+  88%  { transform: translate(-50%, 18vh) rotate(14deg) scale(0.2);   opacity: 0.35; filter: blur(3px); }
+  100% { transform: translate(-50%, 22vh) rotate(22deg) scale(0.05);  opacity: 0;    filter: blur(4px); }
+}
+
+.center-fade-in {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: center-fade-in 3.4s ease-out 1 forwards;
+}
+
+@keyframes center-fade-in {
+  0%   { opacity: 0; transform: translateY(6px); }
+  16%  { opacity: 0; transform: translateY(6px); }
+  32%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tunnel-ring, .falling-rabbit {
+  .well-zoom, .rabbit-fall-small, .scrim-deepen, .center-fade-in {
     animation: none;
-    opacity: 0.15;
   }
 }
