@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import SplashScreen from "./components/SplashScreen";
 import CountdownTimer from "./components/CountdownTimer";
 import { supabase } from "./lib/supabase";
+import Footer from "./components/Footer";
 import {
   festDetails,
   tiers,
+  clubPasses,
   eventCategories,
   eventsList,
   teamContacts,
@@ -25,9 +27,14 @@ const SparklesIcon = () => (
   </svg>
 );
 
-// Pocket watch — for festival dates
 const CalendarIcon = () => (
-  <svg className="w-7 h-7 text-mist-300 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+  <svg
+    className="w-7 h-7 text-mist-300 mb-2"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+  >
     <path d="M12 2.5v1.4M9.5 1.8h5" strokeLinecap="round" />
     <circle cx="12" cy="13" r="8.2" />
     <circle cx="12" cy="13" r="0.9" fill="currentColor" stroke="none" />
@@ -37,27 +44,51 @@ const CalendarIcon = () => (
   </svg>
 );
 
-// Toadstool signpost — for host venue
 const MapPinIcon = () => (
-  <svg className="w-7 h-7 text-toadstool-400 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-    <path d="M12 3c-4 0-6.5 2.1-6.5 4.3 0 1 .9 1.5 1.9 1.2C8.5 8 10 7.6 12 7.6s3.5.4 4.6.9c1 .3 1.9-.2 1.9-1.2C18.5 5.1 16 3 12 3Z" strokeLinejoin="round" />
+  <svg
+    className="w-7 h-7 text-toadstool-400 mb-2"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+  >
+    <path
+      d="M12 3c-4 0-6.5 2.1-6.5 4.3 0 1 .9 1.5 1.9 1.2C8.5 8 10 7.6 12 7.6s3.5.4 4.6.9c1 .3 1.9-.2 1.9-1.2C18.5 5.1 16 3 12 3Z"
+      strokeLinejoin="round"
+    />
     <circle cx="8.5" cy="6.1" r="0.5" fill="currentColor" stroke="none" />
     <circle cx="14.5" cy="5.6" r="0.5" fill="currentColor" stroke="none" />
     <path d="M12 8v3" strokeLinecap="round" />
-    <path d="M12 11c-2.4 0-4.3 1.7-4.3 3.9 0 3 2 6.4 4.3 7.6 2.3-1.2 4.3-4.6 4.3-7.6 0-2.2-1.9-3.9-4.3-3.9Z" strokeLinejoin="round" />
+    <path
+      d="M12 11c-2.4 0-4.3 1.7-4.3 3.9 0 3 2 6.4 4.3 7.6 2.3-1.2 4.3-4.6 4.3-7.6 0-2.2-1.9-3.9-4.3-3.9Z"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
-// Trio of card suits — for participation / footfall
 const UsersIcon = () => (
   <svg className="w-7 h-7 mb-2" viewBox="0 0 24 24" fill="none">
-    <path className="text-toadstool-400" fill="currentColor" d="M12 5c-1.6 0-2.9 1.3-2.9 2.9 0 1.9 1.8 3.3 4.5 5.6C16.3 11.2 18 9.8 18 7.9 18 6.3 16.7 5 15.1 5c-1 0-1.9.5-2.4 1.3C12.2 5.5 12.1 5 12 5Z" opacity="0.55" />
-    <path className="text-mist-300" fill="currentColor" d="M6 12.5 3 18.5h2.2L4 21h4l-1.2-2.5H9L6 12.5Z" opacity="0.9" />
-    <path className="text-lantern-300" fill="currentColor" d="M18 12.5l-3 6h2.2L16 21h4l-1.2-2.5H21l-3-6Z" opacity="0.9" />
+    <path
+      className="text-toadstool-400"
+      fill="currentColor"
+      d="M12 5c-1.6 0-2.9 1.3-2.9 2.9 0 1.9 1.8 3.3 4.5 5.6C16.3 11.2 18 9.8 18 7.9 18 6.3 16.7 5 15.1 5c-1 0-1.9.5-2.4 1.3C12.2 5.5 12.1 5 12 5Z"
+      opacity="0.55"
+    />
+    <path
+      className="text-mist-300"
+      fill="currentColor"
+      d="M6 12.5 3 18.5h2.2L4 21h4l-1.2-2.5H9L6 12.5Z"
+      opacity="0.9"
+    />
+    <path
+      className="text-lantern-300"
+      fill="currentColor"
+      d="M18 12.5l-3 6h2.2L16 21h4l-1.2-2.5H21l-3-6Z"
+      opacity="0.9"
+    />
   </svg>
 );
 
-// Drifting firefly field — decorative ambient layer
 const FireflyField = ({ count = 6 }) => (
   <div className="pointer-events-none absolute inset-0 overflow-hidden">
     {Array.from({ length: count }).map((_, i) => (
@@ -75,24 +106,56 @@ const FireflyField = ({ count = 6 }) => (
   </div>
 );
 
-// Mushroom silhouette cluster — corner decoration
 const MushroomCluster = ({ className = "" }) => (
   <svg className={className} viewBox="0 0 160 120" fill="none">
     <g opacity="0.5">
       <ellipse cx="30" cy="55" rx="26" ry="15" fill="currentColor" />
-      <rect x="22" y="55" width="16" height="35" rx="6" fill="currentColor" opacity="0.85" />
+      <rect
+        x="22"
+        y="55"
+        width="16"
+        height="35"
+        rx="6"
+        fill="currentColor"
+        opacity="0.85"
+      />
       <ellipse cx="95" cy="35" rx="18" ry="11" fill="currentColor" />
-      <rect x="89" y="35" width="12" height="26" rx="5" fill="currentColor" opacity="0.85" />
+      <rect
+        x="89"
+        y="35"
+        width="12"
+        height="26"
+        rx="5"
+        fill="currentColor"
+        opacity="0.85"
+      />
       <ellipse cx="130" cy="60" rx="22" ry="13" fill="currentColor" />
-      <rect x="122" y="60" width="14" height="30" rx="5" fill="currentColor" opacity="0.85" />
+      <rect
+        x="122"
+        y="60"
+        width="14"
+        height="30"
+        rx="5"
+        fill="currentColor"
+        opacity="0.85"
+      />
     </g>
   </svg>
 );
 
-// Curling vine with small leaves — edge decoration
 const VineSwirl = ({ className = "" }) => (
-  <svg className={className} viewBox="0 0 300 60" fill="none" stroke="currentColor" strokeWidth="1.6">
-    <path d="M2 30c20-20 40 20 60 0s40-20 60 0 40 20 60 0 40-20 60 0 40 20 56 0" strokeLinecap="round" opacity="0.5" />
+  <svg
+    className={className}
+    viewBox="0 0 300 60"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+  >
+    <path
+      d="M2 30c20-20 40 20 60 0s40-20 60 0 40 20 60 0 40-20 60 0 40 20 56 0"
+      strokeLinecap="round"
+      opacity="0.5"
+    />
     <path d="M32 28c4-8 12-8 14 0" opacity="0.5" />
     <path d="M92 30c4-8 12-8 14 0" opacity="0.5" />
     <path d="M152 28c4-8 12-8 14 0" opacity="0.5" />
@@ -100,17 +163,6 @@ const VineSwirl = ({ className = "" }) => (
   </svg>
 );
 
-// Cheshire cat grin — subtle brand callback
-const CheshireGrin = ({ className = "" }) => (
-  <svg className={className} viewBox="0 0 120 60" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-    <path d="M8 14c14 30 90 30 104 0" opacity="0.55" />
-    <path d="M22 20l9 8M98 20l-9 8M42 26l6 10M78 26l-6 10M60 28v12" opacity="0.4" />
-    <circle cx="30" cy="8" r="2.5" fill="currentColor" stroke="none" opacity="0.55" />
-    <circle cx="90" cy="8" r="2.5" fill="currentColor" stroke="none" opacity="0.55" />
-  </svg>
-);
-
-// Scattered faint playing-card suits
 const FloatingSuits = () => (
   <div className="pointer-events-none absolute inset-0 overflow-hidden select-none">
     {[
@@ -122,7 +174,12 @@ const FloatingSuits = () => (
       <span
         key={i}
         className="absolute text-lantern-400/10"
-        style={{ left: c.l, top: c.t, fontSize: c.sz, transform: `rotate(${c.r}deg)` }}
+        style={{
+          left: c.l,
+          top: c.t,
+          fontSize: c.sz,
+          transform: `rotate(${c.r}deg)`,
+        }}
       >
         {c.s}
       </span>
@@ -130,7 +187,6 @@ const FloatingSuits = () => (
   </div>
 );
 
-// Full section background dressing: corner mushrooms + top vine + faint suits
 const SectionScenery = ({ suits = true }) => (
   <div className="pointer-events-none absolute inset-0 overflow-hidden -z-10">
     <VineSwirl className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] max-w-3xl h-10 text-lantern-500/40" />
@@ -200,15 +256,17 @@ export default function App() {
   // UTR State
   const [utrNumber, setUtrNumber] = useState("");
 
-  // Registration Form State
+  // Registration & Pass Selection State
+  const [selectedPassType, setSelectedPassType] = useState("tier"); // 'tier' | 'club'
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
     college: "",
     yearOfStudy: "1st Year",
-    tier: "mad-hatter",
+    selectedPassId: "tier-two", // Default selection
     selectedEvents: [],
   });
+
   const [submitting, setSubmitting] = useState(false);
   const [registeredSuccess, setRegisteredSuccess] = useState(false);
 
@@ -268,11 +326,37 @@ export default function App() {
     });
   };
 
+  // Dynamic Price Calculation
+  const activePass =
+    selectedPassType === "tier"
+      ? tiers.find((t) => t.id === formData.selectedPassId)
+      : clubPasses.find((p) => p.id === formData.selectedPassId);
+
+  const passPrice = activePass ? activePass.price : 0;
+
+  const selectedEventObjects = eventsList.filter((ev) =>
+    formData.selectedEvents.includes(ev.id),
+  );
+
+  const eventsTotalPrice = selectedEventObjects.reduce(
+    (sum, evt) => sum + (evt.price || 0),
+    0,
+  );
+
+  const grandTotal = passPrice + eventsTotalPrice;
+
   const handleRegistrationSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
       alert("Please log in or create an account first to register.");
       setActiveTab("auth");
+      return;
+    }
+
+    if (!formData.selectedPassId) {
+      alert(
+        "Please select at least one Delegate Tier or Club Pass to proceed.",
+      );
       return;
     }
 
@@ -291,8 +375,10 @@ export default function App() {
           phone: formData.phone,
           college: formData.college,
           year_of_study: formData.yearOfStudy,
-          tier: formData.tier,
+          pass_type: selectedPassType,
+          pass_id: formData.selectedPassId,
           selected_events: formData.selectedEvents,
+          total_amount: grandTotal,
           utr_number: utrNumber.trim(),
           payment_status: "PENDING_VERIFICATION",
         },
@@ -312,6 +398,12 @@ export default function App() {
     selectedCategory === "all"
       ? eventsList
       : eventsList.filter((ev) => ev.category === selectedCategory);
+
+  const getWhatsAppLink = (phone) => {
+    const formatted = phone.replace(/\D/g, "");
+    const cleanNumber = formatted.length === 10 ? `91${formatted}` : formatted;
+    return `https://wa.me/${cleanNumber}`;
+  };
 
   return (
     <div className="min-h-screen bg-[#122519] text-slate-100 flex flex-col selection:bg-lantern-500 selection:text-parchment-50">
@@ -396,9 +488,15 @@ export default function App() {
               aria-label="Toggle menu"
               className="md:hidden w-10 h-10 flex flex-col items-center justify-center gap-1.5 rounded-full border border-lantern-500/20 bg-canopy-900/60"
             >
-              <span className={`block w-4 h-0.5 bg-lantern-200 rounded transition-transform ${mobileMenuOpen ? "rotate-45 translate-y-2" : ""}`} />
-              <span className={`block w-4 h-0.5 bg-lantern-200 rounded transition-opacity ${mobileMenuOpen ? "opacity-0" : ""}`} />
-              <span className={`block w-4 h-0.5 bg-lantern-200 rounded transition-transform ${mobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
+              <span
+                className={`block w-4 h-0.5 bg-lantern-200 rounded transition-transform ${mobileMenuOpen ? "rotate-45 translate-y-2" : ""}`}
+              />
+              <span
+                className={`block w-4 h-0.5 bg-lantern-200 rounded transition-opacity ${mobileMenuOpen ? "opacity-0" : ""}`}
+              />
+              <span
+                className={`block w-4 h-0.5 bg-lantern-200 rounded transition-transform ${mobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`}
+              />
             </button>
           </div>
         </div>
@@ -439,7 +537,6 @@ export default function App() {
         {activeTab === "home" && (
           <div>
             <section className="relative min-h-[85vh] flex items-center justify-center text-center px-4 overflow-hidden">
-              {/* Illustrated forest backdrop */}
               <div
                 className="absolute inset-0 z-0 bg-cover bg-center opacity-70"
                 style={{ backgroundImage: "url('/theme-scenery.jpg')" }}
@@ -450,7 +547,8 @@ export default function App() {
 
               <div className="relative z-10 max-w-4xl mx-auto space-y-6 pt-10">
                 <div className="stamp-badge inline-flex items-center gap-2 px-4 py-1.5 rounded-full border-2 border-dashed border-lantern-400/40 bg-canopy-950/50 backdrop-blur-sm text-lantern-200 text-sm tracking-wide -rotate-1">
-                  <SparklesIcon /> JIPMER Pondicherry • Annual Cultural &amp; Sports Fest
+                  <SparklesIcon /> JIPMER Pondicherry • Annual Cultural &amp;
+                  Sports Fest
                 </div>
 
                 <div className="flex justify-center px-4">
@@ -561,7 +659,9 @@ export default function App() {
                 <div className="text-3xl font-display font-black text-mist-300">
                   5000+
                 </div>
-                <div className="text-xs text-parchment-100/60 mt-1">Participants</div>
+                <div className="text-xs text-parchment-100/60 mt-1">
+                  Participants
+                </div>
               </div>
               <div className="glow-card p-6 rounded-2xl">
                 <div className="text-3xl font-display font-black text-lantern-300">
@@ -572,8 +672,12 @@ export default function App() {
                 </div>
               </div>
               <div className="glow-card p-6 rounded-2xl">
-                <div className="text-3xl font-display font-black text-toadstool-300">50+</div>
-                <div className="text-xs text-parchment-100/60 mt-1">Competitions</div>
+                <div className="text-3xl font-display font-black text-toadstool-300">
+                  50+
+                </div>
+                <div className="text-xs text-parchment-100/60 mt-1">
+                  Competitions
+                </div>
               </div>
             </div>
 
@@ -630,17 +734,27 @@ export default function App() {
                   className="glow-card p-6 rounded-2xl flex flex-col justify-between space-y-4"
                 >
                   <div>
-                    <div className="text-[10px] uppercase font-bold tracking-widest text-lantern-400 mb-1">
-                      {ev.category.replace("-", " ")}
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-[10px] uppercase font-bold tracking-widest text-lantern-400">
+                        {ev.category.replace("-", " ")}
+                      </span>
+                      <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                        {ev.price > 0 ? `₹${ev.price}` : "Free / Individual"}
+                      </span>
                     </div>
-                    <h3 className="text-lg font-bold text-parchment-50">{ev.title}</h3>
+                    <h3 className="text-lg font-bold text-parchment-50">
+                      {ev.title}
+                    </h3>
                     <p className="text-xs text-slate-300 mt-2 leading-relaxed">
                       {ev.desc}
                     </p>
                   </div>
 
                   <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs">
-                    <span className="text-slate-400">
+                    <span
+                      className="text-slate-400 truncate max-w-[180px]"
+                      title={ev.contact}
+                    >
                       Contact: {ev.contact}
                     </span>
                     <button
@@ -648,9 +762,9 @@ export default function App() {
                         handleEventToggle(ev.id);
                         setActiveTab("registration");
                       }}
-                      className="text-mist-400 hover:text-mist-300 font-semibold"
+                      className="text-mist-400 hover:text-mist-300 font-semibold shrink-0"
                     >
-                      + Select & Register
+                      + Select &amp; Register
                     </button>
                   </div>
                 </div>
@@ -669,7 +783,7 @@ export default function App() {
               </h2>
               <div className="vine-divider w-40 mx-auto" />
               <p className="text-parchment-100/60 text-sm pt-2">
-                October 26 – October 31, 2026 • 6 Days of Pure Reverie
+                {festDetails.dates} • 7 Days of Pure Reverie
               </p>
             </div>
 
@@ -719,70 +833,162 @@ export default function App() {
               </h2>
               <div className="vine-divider w-40 mx-auto" />
               <p className="text-parchment-100/60 text-sm pt-2">
-                Choose your entry tier to enter the Reverie
+                Select your Delegate Tier or Club Pass to enter the Reverie
               </p>
             </div>
 
-            {/* Pricing Tiers Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {tiers.map((tier) => (
-                <div
-                  key={tier.id}
-                  className={`p-6 rounded-3xl border bg-gradient-to-b ${tier.color} backdrop-blur-md flex flex-col justify-between space-y-6${
-                    formData.tier === tier.id
-                      ? "ring-2 ring-lantern-300 shadow-2xl -translate-y-1"
-                      : ""
+            {/* STEP 1: CATEGORY TOGGLE (TIERS vs CLUB PASSES) */}
+            <div className="flex justify-center">
+              <div className="flex bg-canopy-950/80 p-1.5 rounded-full border border-lantern-500/20">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPassType("tier");
+                    setFormData({ ...formData, selectedPassId: "tier-two" });
+                  }}
+                  className={`px-6 py-2 rounded-full text-xs font-bold transition ${
+                    selectedPassType === "tier"
+                      ? "bg-lantern-400 text-canopy-950 shadow-md"
+                      : "text-slate-300 hover:text-white"
                   }`}
-                  style={{ borderRadius: "24px 24px 24px 24px" }}
                 >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="stamp-badge inline-block px-3 py-1 rounded-full text-sm bg-white/10 text-parchment-50">
-                        {tier.tag}
-                      </div>
-                      <span className="text-3xl leading-none text-parchment-50/90">{tier.suit}</span>
-                    </div>
-                    <h3 className="text-2xl font-display font-black text-parchment-50">
-                      {tier.name}
-                    </h3>
-                    <div className="text-3xl font-display font-extrabold text-parchment-50">
-                      ₹{tier.price}{" "}
-                      <span className="text-xs font-body font-normal text-parchment-100/60">
-                        / delegate
-                      </span>
-                    </div>
-
-                    <ul className="space-y-2 text-xs text-parchment-100/85">
-                      {tier.amenities.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <CheckIcon />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, tier: tier.id })}
-                    className={`w-full py-3 rounded-full font-bold text-xs tracking-wider transition ${
-                      formData.tier === tier.id
-                        ? "bg-lantern-400 text-canopy-950 shadow-lg"
-                        : "bg-white/10 hover:bg-white/20 text-parchment-50"
-                    }`}
-                  >
-                    {formData.tier === tier.id
-                      ? "✓ Selected Tier"
-                      : "Select Tier"}
-                  </button>
-                </div>
-              ))}
+                  Delegate Tiers (All-Access)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPassType("club");
+                    setFormData({ ...formData, selectedPassId: "cult-pass" });
+                  }}
+                  className={`px-6 py-2 rounded-full text-xs font-bold transition ${
+                    selectedPassType === "club"
+                      ? "bg-lantern-400 text-canopy-950 shadow-md"
+                      : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  Club Passes (Domain Specific)
+                </button>
+              </div>
             </div>
 
-            {/* Registration Form */}
-            <div className="max-w-2xl mx-auto glow-card p-8 rounded-3xl">
+            {/* DELEGATE TIERS CARDS */}
+            {selectedPassType === "tier" && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {tiers.map((tier) => (
+                  <div
+                    key={tier.id}
+                    onClick={() =>
+                      setFormData({ ...formData, selectedPassId: tier.id })
+                    }
+                    className={`cursor-pointer p-6 rounded-3xl border bg-gradient-to-b ${tier.color} backdrop-blur-md flex flex-col justify-between space-y-6 transition-all ${
+                      formData.selectedPassId === tier.id
+                        ? "ring-2 ring-lantern-300 shadow-2xl -translate-y-1"
+                        : "opacity-85 hover:opacity-100"
+                    }`}
+                  >
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="stamp-badge inline-block px-3 py-1 rounded-full text-sm bg-white/10 text-parchment-50">
+                          {tier.tag}
+                        </div>
+                        <span className="text-3xl leading-none text-parchment-50/90">
+                          {tier.suit}
+                        </span>
+                      </div>
+                      <h3 className="text-2xl font-display font-black text-parchment-50">
+                        {tier.name}
+                      </h3>
+                      <div className="text-3xl font-display font-extrabold text-parchment-50">
+                        ₹{tier.price}*
+                        <span className="text-xs font-body font-normal text-parchment-100/60">
+                          {" "}
+                          / delegate
+                        </span>
+                      </div>
+
+                      <ul className="space-y-2 text-xs text-parchment-100/85">
+                        {tier.amenities.map((item, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <CheckIcon />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <button
+                      type="button"
+                      className={`w-full py-3 rounded-full font-bold text-xs tracking-wider transition ${
+                        formData.selectedPassId === tier.id
+                          ? "bg-lantern-400 text-canopy-950 shadow-lg"
+                          : "bg-white/10 hover:bg-white/20 text-parchment-50"
+                      }`}
+                    >
+                      {formData.selectedPassId === tier.id
+                        ? "✓ Selected Tier"
+                        : "Select Tier"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* CLUB PASSES CARDS */}
+            {selectedPassType === "club" && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {clubPasses.map((pass) => (
+                    <div
+                      key={pass.id}
+                      onClick={() =>
+                        setFormData({ ...formData, selectedPassId: pass.id })
+                      }
+                      className={`cursor-pointer p-6 rounded-3xl border bg-canopy-950/80 border-lantern-500/20 backdrop-blur-md flex flex-col justify-between space-y-4 transition-all ${
+                        formData.selectedPassId === pass.id
+                          ? "ring-2 ring-lantern-300 border-lantern-400 shadow-2xl -translate-y-1 bg-canopy-900"
+                          : "hover:border-lantern-500/40 opacity-90 hover:opacity-100"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="text-xl font-display font-bold text-parchment-50">
+                            {pass.name}
+                          </h3>
+                          <span className="text-xl font-extrabold text-lantern-300">
+                            ₹{pass.price}*
+                          </span>
+                        </div>
+                        <p className="text-xs text-parchment-100/70 leading-relaxed">
+                          {pass.desc}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        className={`w-full py-2.5 rounded-full font-bold text-xs transition ${
+                          formData.selectedPassId === pass.id
+                            ? "bg-lantern-400 text-canopy-950 shadow-md"
+                            : "bg-white/10 text-parchment-50 hover:bg-white/20"
+                        }`}
+                      >
+                        {formData.selectedPassId === pass.id
+                          ? "✓ Selected Pass"
+                          : "Select Pass"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-center text-xs text-slate-400 italic">
+                  Note: Holding a Cult / Sports / Lit pass does not grant main
+                  stage access. Prices subject to change.
+                </p>
+              </div>
+            )}
+
+            {/* Registration Form & Dynamic Checkout */}
+            <div className="max-w-3xl mx-auto glow-card p-8 rounded-3xl">
               <h3 className="text-xl font-display font-bold mb-6 text-parchment-50 text-center">
-                Complete Your Details
+                Complete Participant Details
               </h3>
 
               {registeredSuccess ? (
@@ -805,28 +1011,28 @@ export default function App() {
               ) : (
                 <form
                   onSubmit={handleRegistrationSubmit}
-                  className="space-y-4 text-xs"
+                  className="space-y-6 text-xs"
                 >
-                  <div>
-                    <label className="block text-slate-300 mb-1">
-                      Full Name
-                    </label>
-                    <input
-                      required
-                      type="text"
-                      placeholder="Susithra..."
-                      value={formData.fullName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, fullName: e.target.value })
-                      }
-                      className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
-                    />
-                  </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-slate-300 mb-1">
-                        Phone Number (WhatsApp)
+                        Full Name <span className="text-toadstool-400">*</span>
+                      </label>
+                      <input
+                        required
+                        type="text"
+                        placeholder="Susithra..."
+                        value={formData.fullName}
+                        onChange={(e) =>
+                          setFormData({ ...formData, fullName: e.target.value })
+                        }
+                        className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-300 mb-1">
+                        Phone Number (WhatsApp){" "}
+                        <span className="text-toadstool-400">*</span>
                       </label>
                       <input
                         required
@@ -839,9 +1045,13 @@ export default function App() {
                         className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
                       />
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-slate-300 mb-1">
-                        College / Institution
+                        College / Institution{" "}
+                        <span className="text-toadstool-400">*</span>
                       </label>
                       <input
                         required
@@ -854,51 +1064,86 @@ export default function App() {
                         className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
                       />
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-300 mb-1">
-                      Year of Study
-                    </label>
-                    <select
-                      value={formData.yearOfStudy}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          yearOfStudy: e.target.value,
-                        })
-                      }
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#1c3226] border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
-                    >
-                      <option>1st Year</option>
-                      <option>2nd Year</option>
-                      <option>3rd Year</option>
-                      <option>Final Year</option>
-                      <option>Intern / Post-Graduate</option>
-                    </select>
+                    <div>
+                      <label className="block text-slate-300 mb-1">
+                        Year of Study
+                      </label>
+                      <select
+                        value={formData.yearOfStudy}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            yearOfStudy: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2.5 rounded-xl bg-[#1c3226] border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
+                      >
+                        <option>1st Year</option>
+                        <option>2nd Year</option>
+                        <option>3rd Year</option>
+                        <option>Final Year</option>
+                        <option>Intern / Post-Graduate</option>
+                      </select>
+                    </div>
                   </div>
 
                   {/* Event Checkbox Selection */}
                   <div className="pt-2">
-                    <label className="block text-slate-300 mb-2 font-semibold">
-                      Select Events to Participate In (
-                      {formData.selectedEvents.length} selected):
+                    <label className="block text-slate-300 mb-2 font-semibold flex justify-between">
+                      <span>Select Events to Participate In:</span>
+                      <span className="text-lantern-300">
+                        {formData.selectedEvents.length} Selected
+                      </span>
                     </label>
-                    <div className="max-h-48 overflow-y-auto p-3 rounded-xl bg-canopy-950/50 border border-white/10 space-y-2">
+                    <div className="max-h-52 overflow-y-auto p-3 rounded-xl bg-canopy-950/50 border border-white/10 space-y-2">
                       {eventsList.map((ev) => (
                         <label
                           key={ev.id}
-                          className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-parchment-50"
+                          className="flex items-center justify-between p-1.5 rounded hover:bg-white/5 cursor-pointer text-slate-300 hover:text-parchment-50"
                         >
-                          <input
-                            type="checkbox"
-                            checked={formData.selectedEvents.includes(ev.id)}
-                            onChange={() => handleEventToggle(ev.id)}
-                            className="rounded border-white/20 text-lantern-600 focus:ring-0"
-                          />
-                          <span>{ev.title}</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.selectedEvents.includes(ev.id)}
+                              onChange={() => handleEventToggle(ev.id)}
+                              className="rounded border-white/20 text-lantern-600 focus:ring-0 accent-lantern-400"
+                            />
+                            <span>{ev.title}</span>
+                          </div>
+                          <span className="text-xs text-amber-300 font-mono">
+                            {ev.price > 0 ? `₹${ev.price}` : "₹0"}
+                          </span>
                         </label>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Dynamic Checkout Calculation Summary */}
+                  <div className="p-4 rounded-2xl bg-canopy-950/90 border border-lantern-500/30 space-y-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-lantern-300 border-b border-white/10 pb-2">
+                      Checkout Summary
+                    </h4>
+                    <div className="flex justify-between text-slate-300">
+                      <span>
+                        Pass: {activePass ? activePass.name : "None selected"}
+                      </span>
+                      <span className="font-semibold text-lantern-200">
+                        ₹{passPrice}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>
+                        Events Selected ({selectedEventObjects.length}):
+                      </span>
+                      <span className="font-semibold text-lantern-200">
+                        ₹{eventsTotalPrice}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-white/10 pt-2 text-sm font-bold text-parchment-50">
+                      <span>Total Amount Payable:</span>
+                      <span className="text-xl text-lantern-400">
+                        ₹{grandTotal}
+                      </span>
                     </div>
                   </div>
 
@@ -906,7 +1151,7 @@ export default function App() {
                   <div className="p-5 rounded-2xl bg-white/5 border border-lantern-500/30 text-center space-y-4 my-6">
                     <div className="space-y-1">
                       <h4 className="text-sm font-bold text-lantern-300">
-                        Scan & Pay via Any UPI App
+                        Scan &amp; Pay via Any UPI App
                       </h4>
                       <p className="text-[11px] text-slate-400">
                         GPay / PhonePe / Paytm / BHIM
@@ -931,15 +1176,10 @@ export default function App() {
                       <p className="text-xs font-mono text-mist-300">
                         UPI ID: spandan2026@upi
                       </p>
-                      <p className="text-[11px] text-slate-400">
-                        Amount to Pay:{" "}
-                        <span className="font-bold text-parchment-50">
-                          ₹
-                          {formData.tier === "white-rabbit"
-                            ? 350
-                            : formData.tier === "mad-hatter"
-                              ? 500
-                              : 750}
+                      <p className="text-xs text-slate-300">
+                        Total to Pay:{" "}
+                        <span className="font-bold text-lantern-300 text-sm">
+                          ₹{grandTotal}
                         </span>
                       </p>
                     </div>
@@ -963,12 +1203,12 @@ export default function App() {
 
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={submitting || !formData.selectedPassId}
                     className="w-full py-3.5 rounded-full bg-lantern-400 font-bold text-sm text-canopy-950 shadow-[0_5px_0_0_rgba(166,92,27,0.9)] hover:brightness-105 active:translate-y-1 active:shadow-none transition-all mt-4 disabled:opacity-50"
                   >
                     {submitting
                       ? "Saving to Database..."
-                      : "Confirm & Save Registration"}
+                      : `Confirm & Pay ₹${grandTotal}`}
                   </button>
                 </form>
               )}
@@ -982,7 +1222,7 @@ export default function App() {
             <SectionScenery />
             <div className="text-center space-y-2">
               <h2 className="font-display text-4xl md:text-5xl font-black text-lantern-200 glow-text">
-                Festival Leadership & Contacts
+                Festival Leadership &amp; Contacts
               </h2>
               <div className="vine-divider w-40 mx-auto" />
               <p className="text-parchment-100/60 text-sm pt-2">
@@ -992,13 +1232,20 @@ export default function App() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {teamContacts.map((mem, idx) => (
-                <div key={idx} className="glow-card p-6 rounded-2xl space-y-2">
-                  <div className="text-[10px] uppercase font-bold tracking-widest text-lantern-400">
-                    {mem.role}
+                <div
+                  key={idx}
+                  className="glow-card p-6 rounded-2xl space-y-2 flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="text-[10px] uppercase font-bold tracking-widest text-lantern-400">
+                      {mem.role}
+                    </div>
+                    <div className="text-lg font-bold text-parchment-50">
+                      {mem.name}
+                    </div>
                   </div>
-                  <div className="text-lg font-bold text-parchment-50">{mem.name}</div>
                   <a
-                    href={`https://wa.me/91${mem.phone}`}
+                    href={getWhatsAppLink(mem.phone)}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 text-mist-400 hover:text-mist-300 text-xs font-semibold mt-2"
@@ -1173,20 +1420,7 @@ export default function App() {
       </main>
 
       {/* FOOTER */}
-      <footer className="border-t border-white/5 bg-[#0e1a14] py-8 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© 2026 Spandan JIPMER. All rights reserved.</p>
-          <button
-            onClick={() => {
-              setActiveTab("admin");
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-            className="text-slate-600 hover:text-lantern-400 transition font-mono text-[11px]"
-          >
-            ⚙ Committee Portal
-          </button>
-        </div>
-      </footer>
+      <Footer setActiveTab={setActiveTab} />
     </div>
   );
 }

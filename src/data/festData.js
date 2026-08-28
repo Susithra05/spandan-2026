@@ -3,7 +3,7 @@ export const festDetails = {
   name: "SPANDAN 2026",
   theme: "The Enchanted Reverie",
   tagline: "Where reality stutters… and the impossible feels strangely familiar.",
-  dates: "October 26 – October 31, 2026",
+  dates: "October 26 – November 1, 2026",
   targetDate: "2026-10-26T09:00:00+05:30", // Start timestamp for Countdown
   venue: "JIPMER Campus, Pondicherry",
   instagram: "jipmer_spandan",
@@ -11,56 +11,94 @@ export const festDetails = {
 
 export const tiers = [
   {
-    id: "white-rabbit",
-    name: "White Rabbit",
-    price: 375,
-    tag: "Essential Pass",
-    suit: "♠",
-    color: "from-mist-700/40 to-canopy-600/30 border-mist-400/40",
+    id: "tier-one",
+    name: "Tier One",
+    price: 750,
+    tag: "All-Access Pass",
+    suit: "♥",
+    color: "from-toadstool-700/50 to-berry-700/35 border-toadstool-400/50",
     amenities: [
-      "Access to all competitive events (excl. Dernier Cri)",
-      "Inaugural Night (Day 1)",
-      "Chorea Night (Day 2)",
-      "Aalaap Finals (Day 3)",
-      "Tinnitus Finals (Day 4)",
-      "DJ Night (Day 1)",
-      "1 Minor Proshow"
+      "Participate & spectate all competitive events (INCL. Dernier Cri)",
+      "Inaugural Night",
+      "Chorea Night",
+      "Alaap Finals",
+      "Tinnitus Finals",
+      "DJ Night",
+      "1 Minor Proshow",
+      "Major Proshow",
+      "Dernier Cri (Fashion Show)"
     ]
   },
   {
-    id: "mad-hatter",
-    name: "Mad Hatter",
+    id: "tier-two",
+    name: "Tier Two",
     price: 650,
     tag: "Popular Choice",
     suit: "♦",
     color: "from-lantern-600/40 to-berry-700/25 border-lantern-400/40",
     amenities: [
-      "Access to all competitive events (excl. Dernier Cri)",
-      "Inaugural Night (Day 1)",
-      "Chorea Night (Day 2)",
-      "Aalaap Finals (Day 3)",
-      "Tinnitus Finals (Day 4)",
-      "DJ Night (Day 1 & 2)",
-      "2 Minor Proshows"
+      "Participate & spectate all competitive events (EXCL. Dernier Cri)",
+      "Inaugural Night",
+      "Chorea Night",
+      "Alaap Finals",
+      "Tinnitus Finals",
+      "DJ Night",
+      "1 Minor Proshow"
     ]
   },
   {
-    id: "red-queen",
-    name: "Red Queen",
-    price: 850,
-    tag: "All-Access Pass",
-    suit: "♥",
-    color: "from-toadstool-700/50 to-berry-700/35 border-toadstool-400/50",
+    id: "tier-three",
+    name: "Tier Three",
+    price: 375,
+    tag: "Essential Pass",
+    suit: "♠",
+    color: "from-mist-700/40 to-canopy-600/30 border-mist-400/40",
     amenities: [
-      "Access to all competitive events (INCL. Dernier Cri)",
-      "Inaugural Night (Day 1)",
-      "Chorea Night (Day 2)",
-      "Aalaap Finals (Day 3)",
-      "Tinnitus Finals (Day 4)",
-      "DJ Night (Day 1, 2 & 3)",
-      "2 Minor Proshows",
-      "Major Proshow Finale"
+      "Participate & spectate all competitive events (EXCL. Dernier Cri)",
+      "Inaugural Night",
+      "Chorea Night",
+      "Alaap Finals",
+      "Tinnitus Finals",
+      "DJ Night"
     ]
+  }
+];
+
+export const clubPasses = [
+  {
+    id: "cult-pass",
+    name: "Cult Pass",
+    price: 150,
+    type: "club-pass",
+    desc: "Access to all minor stage events. Individual event registration fee to be paid separately."
+  },
+  {
+    id: "sports-pass",
+    name: "Sports Pass",
+    price: 250,
+    type: "club-pass",
+    desc: "Access to all sports events. Individual event registration fee to be paid separately."
+  },
+  {
+    id: "lit-pass",
+    name: "Lit Pass",
+    price: 500,
+    type: "club-pass",
+    desc: "Participate in all Literary events. Individual event registration fee not required."
+  },
+  {
+    id: "quiz-pass",
+    name: "Quiz Pass",
+    price: 550,
+    type: "club-pass",
+    desc: "Participate in all Quiz events. Individual event registration fee not required."
+  },
+  {
+    id: "premium-pass",
+    name: "Premium Pass (Lit & Quiz)",
+    price: 800,
+    type: "club-pass",
+    desc: "Participate in all Literary & Quiz events. Individual event registration fee not required."
   }
 ];
 
@@ -70,63 +108,120 @@ export const eventCategories = [
   { id: "cult-minor", label: "Cultural Minor" },
   { id: "fine-arts", label: "Les Beaux Arts" },
   { id: "literary", label: "Les Littéraires" },
+  { id: "quiz", label: "Quizzes" },
   { id: "sports", label: "Les Jeux" },
   { id: "informals", label: "House Informals" },
   { id: "mediquiz", label: "La Lutte" },
-  { id: "photography", label: "Photography" }
+  { id: "gaming", label: "Game Over" },
+  { id: "photography", label: "Lumière sur l’Instant" }
 ];
 
 export const eventsList = [
+  // Fine Arts (Les Beaux Arts)
+  { id: "painting", title: "Painting", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 0, desc: "Express the wonderland on canvas." },
+  { id: "sketching", title: "Sketching", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 0, desc: "Express the wonderland on paper with sketches." },
+  { id: "collage", title: "Collage", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 0, desc: "Creative collage art competition." },
+  { id: "face-painting", title: "Face Painting", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 0, desc: "Canvas on skin with surreal concepts." },
+  { id: "mehendi", title: "Mehendi", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 0, desc: "Intricate traditional and creative henna styling." },
+  { id: "pot-painting", title: "Pot Painting", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 0, desc: "Terracotta painting with vibrant themes." },
+
   // Cultural Major
-  { id: "chorea-theme", title: "Chorea (Theme Group Dance)", category: "cult-major", contact: "Brochure", desc: "Flagship group choreography matching the reverie theme." },
-  { id: "chorea-non-theme", title: "Chorea (Non-Theme)", category: "cult-major", contact: "Brochure", desc: "High octane eastern & western group dance competition." },
-  { id: "alaap", title: "Alaap (Eastern BoB)", category: "cult-major", contact: "Brochure", desc: "Eastern Battle of the Bands live on stage." },
-  { id: "tinnitus", title: "Tinnitus (Western BoB)", category: "cult-major", contact: "Brochure", desc: "Western rock and metal Battle of the Bands." },
-  { id: "dernier-cri", title: "Dernier Cri (Fashion Show)", category: "cult-major", contact: "Brochure", desc: "The premier runway fashion spectacle." },
+  { id: "chorea-theme", title: "Chorea (Theme Group Dance)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 0, desc: "Flagship group choreography matching the reverie theme." },
+  { id: "chorea-non-theme-eastern", title: "Chorea (Non-Theme Eastern Group Dance)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 0, desc: "High octane eastern group dance competition." },
+  { id: "chorea-non-theme-western", title: "Chorea (Non-Theme Western Group Dance)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 0, desc: "Electrifying western group dance competition." },
+  { id: "alaap", title: "Alaap (Eastern BoB)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 0, desc: "Eastern Battle of the Bands live on stage." },
+  { id: "tinnitus", title: "Tinnitus (Western BoB)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 0, desc: "Western rock and metal Battle of the Bands." },
+  { id: "dernier-cri", title: "Dernier Cri (Fashion Show)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 0, desc: "The premier runway fashion spectacle." },
 
   // Cultural Minor
-  { id: "solo-dance", title: "Solo Dance (Eastern & Western)", category: "cult-minor", contact: "Brochure", desc: "Individual dance battle across styles." },
-  { id: "duet-dance", title: "Duet Dance", category: "cult-minor", contact: "Brochure", desc: "Synchronized duet dance." },
-  { id: "adaptunes", title: "Adaptunes", category: "cult-minor", contact: "Brochure", desc: "Instant choreography on dynamic changing tracks." },
-  { id: "showdown", title: "Showdown", category: "cult-minor", contact: "Brochure", desc: "High intensity stage face-off." },
-  { id: "solo-singing", title: "Solo Singing (Eastern & Western)", category: "cult-minor", contact: "Brochure", desc: "Solo vocal performance." },
-  { id: "duet-singing", title: "Duet Singing", category: "cult-minor", contact: "Brochure", desc: "Harmonized vocal duets." },
-  { id: "euphony", title: "Euphony (Western Acoustic)", category: "cult-minor", contact: "Brochure", desc: "Unplugged acoustic melodies." },
-  { id: "play-skit-mime", title: "Play / Skit / Mime", category: "cult-minor", contact: "Brochure", desc: "Theatrical, comic sketches and silent storytelling." },
-  { id: "adzap", title: "Adzap", category: "cult-minor", contact: "Brochure", desc: "Creative advertising and presentation showdown." },
+  { id: "solo-dance-eastern", title: "Solo Dance (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Individual eastern dance style showcase." },
+  { id: "solo-dance-western", title: "Solo Dance (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Individual western dance style showcase." },
+  { id: "duet-dance-eastern", title: "Duet Dance (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Synchronized eastern duet dance." },
+  { id: "duet-dance-western", title: "Duet Dance (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Synchronized western duet dance." },
+  { id: "solo-singing-eastern", title: "Solo Singing (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Eastern solo vocal performance." },
+  { id: "solo-singing-western", title: "Solo Singing (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Western solo vocal performance." },
+  { id: "duet-singing-eastern", title: "Duet Singing (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Harmonized eastern vocal duets." },
+  { id: "duet-singing-western", title: "Duet Singing (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Harmonized western vocal duets." },
+  { id: "adaptunes", title: "Adaptunes", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Instant choreography on dynamic changing tracks." },
+  { id: "showdown", title: "Showdown", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "High intensity stage dance face-off." },
+  { id: "euphony", title: "Euphony (Acoustics)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Unplugged acoustic melodies." },
+  { id: "play", title: "Play", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Full stage theatrical play production." },
+  { id: "skit", title: "Skit", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Short comedic or thematic theatrical performance." },
+  { id: "mime", title: "Mime", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Silent storytelling performance art." },
+  { id: "solo-instrumental", title: "Solo Instrumental", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Solo instrumental musical performance." },
+  { id: "adzap", title: "Adzap", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Creative advertising and presentation showdown." },
 
-  // Fine Arts
-  { id: "face-painting", title: "Face Painting", category: "fine-arts", contact: "Kavyanjali: 7892741773", desc: "Canvas on skin with surreal fever dream concepts." },
-  { id: "painting-sketching", title: "Painting & Sketching", category: "fine-arts", contact: "Kavyanjali: 7892741773", desc: "Express the wonderland on paper & canvas." },
-  { id: "mehendi", title: "Mehendi", category: "fine-arts", contact: "Kavyanjali: 7892741773", desc: "Intricate traditional and creative henna styling." },
-  { id: "pot-painting", title: "Pot Painting", category: "fine-arts", contact: "Kavyanjali: 7892741773", desc: "Terracotta painting with vibrant themes." },
+  // House Informals
+  { id: "arcane-heist", title: "Arcane Heist", category: "informals", contact: "Krishnendu: 9048016206", price: 0, desc: "Immersive campus heist challenge." },
+  { id: "beg-borrow-steal", title: "Beg Borrow Steal", category: "informals", contact: "Krishnendu: 9048016206", price: 0, desc: "Classic high-energy scavenger hunt." },
 
-  // Literary
-  { id: "formal-debate", title: "Formal Debate & Malarkey", category: "literary", contact: "Akash: 9901344959", desc: "Rigorous formal argumentation + witty informal banter." },
-  { id: "tj-memorial-quiz", title: "TJ Jaishankar Memorial Quiz", category: "literary", contact: "Akash: 9901344959", desc: "Flagship open general quiz." },
-  { id: "jam", title: "JAM (Just A Minute)", category: "literary", contact: "Akash: 9901344959", desc: "No hesitation, repetition, or deviation." },
-  { id: "genre-quizzes", title: "Fandom / Sports / India / Rewind Quiz", category: "literary", contact: "Akash: 9901344959", desc: "Theme specific rapid-fire quizzes." },
-  { id: "creative-writing", title: "Creative Writing & Poetry", category: "literary", contact: "Akash: 9901344959", desc: "English, Hindi & Tamil writing + 6-word story." },
+  // La Lutte (MediQuiz)
+  { id: "la-lutte-junior", title: "La Lutte (Junior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 0, desc: "Intercollegiate Medical Quiz for juniors." },
+  { id: "la-lutte-senior", title: "La Lutte (Senior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 0, desc: "Intercollegiate Medical Quiz for seniors." },
 
-  // Sports
-  { id: "futsal-football", title: "Football & Futsal", category: "sports", contact: "Vinay: 7207867241 / Nikhitha: 9030787037", desc: "Men & Women field tournaments." },
-  { id: "cricket-basketball", title: "Cricket, Basketball & Volleyball", category: "sports", contact: "Vinay / Nikhitha", desc: "Outdoor court & ground championships." },
-  { id: "racket-sports", title: "Badminton, Tennis & Table Tennis", category: "sports", contact: "Vinay / Nikhitha", desc: "Singles and doubles court battles." },
-  { id: "chess-aquatics", title: "Chess, Aquatics & Athletics", category: "sports", contact: "Vinay / Nikhitha", desc: "Track, pool and board competitions." },
+  // Literary (Les Littéraires)
+  { id: "formal-debate", title: "Formal Debate", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "Rigorous formal argumentation showdown." },
+  { id: "malarkey", title: "Malarkey (Informal Debate)", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "Witty, humorous informal debate battle." },
+  { id: "directors-cut", title: "Director's Cut", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "Cinematic literary adaptation event." },
+  { id: "cryptic-crossword", title: "Cryptic Crossword", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "Mind-bending word puzzles and cryptic clues." },
+  { id: "potpourri", title: "Potpourri (dumbc + picto)", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "Dumb charades and pictionary combo." },
+  { id: "jam", title: "JAM (Just a Minute)", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "No hesitation, repetition, or deviation." },
+  { id: "turn-coat", title: "Turn Coat", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "Switching perspectives mid-speech." },
 
-  // Informals & Special
-  { id: "house-informals", title: "Beg Borrow Steal, Double Trouble & Eat-athon", category: "informals", contact: "Brochure", desc: "Fun-filled campus challenges." },
-  { id: "la-lutte", title: "La Lutte (Junior & Senior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", desc: "Intercollegiate Medical Quiz showdown." },
-  { id: "photography", title: "Lumière sur l’Instant (Online Photography)", category: "photography", contact: "Tharaneeswar: 7010370264 / Midhun: 9840710678", desc: "Through the lens photo contest." }
+  // Quizzes (Les Littéraires)
+  { id: "tj-jaishankar-quiz", title: "TJ Jaishankar Memorial Open Quiz by Major Chandrakant Nair", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "Flagship open general quiz." },
+  { id: "sports-quiz", title: "Sports Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "Ultimate trivia for sports enthusiasts." },
+  { id: "fandom-quiz", title: "Fandom Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "Pop culture, movies, TV shows and books quiz." },
+  { id: "literature-quiz", title: "Literature Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "Literary trivia and classic works." },
+  { id: "tlc-quiz", title: "Travel, Living & Culture Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "World culture, travel and lifestyle trivia." },
+  { id: "rewind-quiz", title: "Rewind Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "Nostalgia and retro events quiz." },
+
+  // Les Jeux (Sports)
+  { id: "cricket", title: "Cricket (M)", category: "sports", contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801", price: 0, desc: "Men's cricket tournament." },
+  { id: "football", title: "Football (M)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Men's football tournament." },
+  { id: "futsal", title: "Futsal (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Fast-paced indoor soccer." },
+  { id: "basketball", title: "Basketball (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Men's & Women's court basketball." },
+  { id: "volleyball", title: "Volleyball (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Men's & Women's volleyball." },
+  { id: "hockey", title: "Hockey (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Field hockey tournament." },
+  { id: "throwball", title: "Throwball (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Throwball tournament." },
+  { id: "badminton", title: "Badminton (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Badminton singles and doubles." },
+  { id: "tennis", title: "Tennis (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Lawn tennis tournament." },
+  { id: "table-tennis", title: "Table Tennis (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Table tennis tournament." },
+  { id: "aquatics", title: "Aquatics (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Swimming and water sports events." },
+  { id: "chess", title: "Chess", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Strategic board battles." },
+  { id: "carrom", title: "Carrom", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Carrom tournament." },
+  { id: "athletics", title: "Athletics (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Track and field events." },
+
+  // Game Over
+  { id: "gaming-online", title: "BGMI & CODM Tournaments (Online)", category: "gaming", contact: "Prudhvi: 8056765218", price: 0, desc: "Online mobile esports competition." },
+  { id: "gaming-offline", title: "FIFA, WWE 2K25 & Mortal Kombat (Offline)", category: "gaming", contact: "Prudhvi: 8056765218", price: 0, desc: "Console gaming battles." },
+  { id: "psvr2", title: "Virtual Reality Experience (PSVR2)", category: "gaming", contact: "Prudhvi: 8056765218", price: 0, desc: "Immersive VR setup with Gran Turismo 7 gaming wheel." },
+
+  // Photography
+  { id: "photography", title: "Lumière sur l’Instant (Online Photography)", category: "photography", contact: "Tharaneeswar: 7010370264 / Midhun: 9840710678", price: 0, desc: "Through the lens photo contest." }
 ];
 
 export const teamContacts = [
-  { role: "President", name: "Sankhalp Sunod", phone: "8590907650" },
-  { role: "Vice-President", name: "Subapreti", phone: "9487174005" },
+  { role: "President", name: "Sankhalp Sunod", phone: "8510107650" },
   { role: "General Secretary", name: "Mathivardhan", phone: "9042667273" },
+  { role: "Vice-President", name: "Subapreti", phone: "9487174005" },
   { role: "Speaker", name: "Karthikeya", phone: "8074601095" },
   { role: "Public Relations", name: "Thirupugazh", phone: "7358121539" },
   { role: "Public Relations", name: "Lineysha", phone: "8121217021" },
+  { role: "Fine Arts & Culturals", name: "Kavyanjali", phone: "7892741773" },
+  { role: "Literary & Debate", name: "Akash", phone: "9701344959" },
+  { role: "Quizzes", name: "Sai Ajay", phone: "6360913421" },
+  { role: "Sports", name: "Vinay", phone: "7207867241" },
+  { role: "Sports", name: "Nikhitha", phone: "9030787037" },
+  { role: "Sports", name: "Mirshad", phone: "7510166801" },
+  { role: "House Informals", name: "Krishnendu", phone: "9048016206" },
+  { role: "La Lutte (MediQuiz)", name: "Praneetha", phone: "6380924669" },
+  { role: "Photography", name: "Tharaneeswar PS", phone: "7010370264" },
+  { role: "Photography", name: "Midhun Raj", phone: "9840710678" },
+  { role: "Gaming (Game Over)", name: "Prudhvi", phone: "8056765218" },
+  { role: "Social Service", name: "Jaagruthi", phone: "9019823915" },
+  { role: "Catering", name: "Koushika", phone: "6374004239" },
+  { role: "Catering", name: "Shree Siva A", phone: "6383244647" },
   { role: "Accommodation", name: "Aijaz", phone: "9148746711" }
 ];
 
@@ -182,7 +277,7 @@ export const scheduleData = [
     date: "Oct 30, 2026",
     title: "The Mad Runway",
     highlights: [
-      "House Informals (Beg Borrow Steal, Eat-athon, Double Trouble)",
+      "House Informals (Beg Borrow Steal, Arcane Heist)",
       "Sports Grand Finals & Aquatics",
       "Dernier Cri (The Flagship Fashion Show)",
       "Acoustic Night & Informal Showdowns"
@@ -191,10 +286,20 @@ export const scheduleData = [
   {
     day: "Day 6",
     date: "Oct 31, 2026",
+    title: "The Dream Unfolds",
+    highlights: [
+      "Literary & Fine Arts Finals",
+      "Gaming Tournament Finals",
+      "Special Proshow & DJ Night"
+    ]
+  },
+  {
+    day: "Day 7",
+    date: "Nov 1, 2026",
     title: "The Grand Finale",
     highlights: [
       "Valedictory Ceremony & Prize Distribution",
-      "Photography & Online Writing Awards",
+      "Photography Awards",
       "Grand Major Proshow (Celebrity Star Night)",
       "Closing Reverie"
     ]
