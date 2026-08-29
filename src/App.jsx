@@ -728,47 +728,93 @@ export default function App() {
 
             {/* Events Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
-              {filteredEvents.map((ev) => (
-                <div
-                  key={ev.id}
-                  className="glow-card p-6 rounded-2xl flex flex-col justify-between space-y-4"
-                >
-                  <div>
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-[10px] uppercase font-bold tracking-widest text-lantern-400">
-                        {ev.category.replace("-", " ")}
-                      </span>
-                      <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                        {ev.price > 0 ? `₹${ev.price}` : "Free / Individual"}
-                      </span>
-                    </div>
-                    <h3 className="text-lg font-bold text-parchment-50">
-                      {ev.title}
-                    </h3>
-                    <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-                      {ev.desc}
-                    </p>
-                  </div>
+              {filteredEvents.map((ev) => {
+                const hasSubEvents = ev.subEvents && ev.subEvents.length > 0;
 
-                  <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs">
-                    <span
-                      className="text-slate-400 truncate max-w-[180px]"
-                      title={ev.contact}
-                    >
-                      Contact: {ev.contact}
-                    </span>
-                    <button
-                      onClick={() => {
-                        handleEventToggle(ev.id);
-                        setActiveTab("registration");
-                      }}
-                      className="text-mist-400 hover:text-mist-300 font-semibold shrink-0"
-                    >
-                      + Select &amp; Register
-                    </button>
+                return (
+                  <div
+                    key={ev.id}
+                    className="glow-card p-6 rounded-2xl flex flex-col justify-between space-y-4"
+                  >
+                    <div>
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-[10px] uppercase font-bold tracking-widest text-lantern-400">
+                          {ev.type ? `${ev.type} • ` : ""}
+                          {ev.category.replace("-", " ")}
+                        </span>
+                        <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                          {ev.price > 0 ? `₹${ev.price}` : "Free / Pass"}
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-bold text-parchment-50">
+                        {ev.title}
+                      </h3>
+                      <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                        {ev.desc}
+                      </p>
+
+                      {/* SUB-EVENTS SELECTABLE CHIPS FOR SPORTS/NESTED EVENTS */}
+                      {hasSubEvents && (
+                        <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
+                          <span className="text-[11px] font-semibold text-lantern-300 block">
+                            Sub-Categories / Formats:
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {ev.subEvents.map((sub, sIdx) => {
+                              const subKey = `${ev.id}:${sub}`;
+                              const isSelected =
+                                formData.selectedEvents.includes(subKey);
+                              return (
+                                <button
+                                  key={sIdx}
+                                  type="button"
+                                  onClick={() => handleEventToggle(subKey)}
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition border ${
+                                    isSelected
+                                      ? "bg-lantern-400 text-canopy-950 border-lantern-400 font-bold shadow-sm"
+                                      : "bg-canopy-950/60 border-white/10 text-slate-300 hover:bg-white/10"
+                                  }`}
+                                >
+                                  {isSelected ? "✓ " : "+ "}
+                                  {sub}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs">
+                      <span
+                        className="text-slate-400 truncate max-w-[180px]"
+                        title={ev.contact}
+                      >
+                        Contact: {ev.contact}
+                      </span>
+                      {!hasSubEvents && (
+                        <button
+                          onClick={() => {
+                            handleEventToggle(ev.id);
+                            setActiveTab("registration");
+                          }}
+                          className="text-mist-400 hover:text-mist-300 font-semibold shrink-0"
+                        >
+                          + Select &amp; Register
+                        </button>
+                      )}
+                      {hasSubEvents && (
+                        <button
+                          onClick={() => setActiveTab("registration")}
+                          className="text-lantern-300 hover:text-lantern-200 font-semibold shrink-0"
+                        >
+                          View Checkout →
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}

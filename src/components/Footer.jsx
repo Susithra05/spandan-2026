@@ -5,11 +5,13 @@ export default function Footer({ setActiveTab }) {
   const mapDirectionsUrl =
     "https://www.google.com/maps/dir/?api=1&destination=JIPMER+Campus+Pondicherry";
 
+  const instagramUrl = `https://instagram.com/${festDetails.instagram}`;
+
   return (
     <footer className="w-full bg-[#0b1d18] text-slate-300 border-t border-lantern-500/20 pt-12 pb-6 px-4 relative overflow-hidden">
       {/* TOP CONTENT GRID */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-white/10 text-sm">
-        {/* COLUMN 1: BRAND & TAGLINE */}
+        {/* COLUMN 1: BRAND, TAGLINE & INSTAGRAM BANNER */}
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-lantern-400/20 border border-lantern-400/40 flex items-center justify-center font-bold text-lantern-300 text-xl shadow-[0_0_12px_rgba(240,169,60,0.3)]">
@@ -29,6 +31,19 @@ export default function Footer({ setActiveTab }) {
             Join us at JIPMER Pondicherry for South India's grandest festival
             experience.
           </p>
+
+          {/* OFFICIAL INSTAGRAM BADGE */}
+          <a
+            href={instagramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-90 transition text-xs font-bold text-white shadow-md"
+          >
+            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+            </svg>
+            <span>Follow @{festDetails.instagram}</span>
+          </a>
         </div>
 
         {/* COLUMN 2: QUICK LINKS */}
@@ -61,7 +76,7 @@ export default function Footer({ setActiveTab }) {
           </ul>
         </div>
 
-        {/* COLUMN 3: CONTACT INFO */}
+        {/* COLUMN 3: CONTACT INFO & SOCIALS */}
         <div className="space-y-3">
           <h4 className="font-bold text-lantern-300 uppercase tracking-widest text-xs">
             Contact Info
@@ -104,6 +119,17 @@ export default function Footer({ setActiveTab }) {
                 {festDetails.dates}
               </span>
             </li>
+            <li className="flex items-center gap-2.5 pt-1">
+              <span className="text-pink-400 shrink-0">📸</span>
+              <a
+                href={instagramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-pink-300 hover:text-pink-200 font-semibold underline transition"
+              >
+                @{festDetails.instagram} on Instagram
+              </a>
+            </li>
           </ul>
         </div>
 
@@ -119,7 +145,6 @@ export default function Footer({ setActiveTab }) {
             rel="noopener noreferrer"
             className="group block relative rounded-xl overflow-hidden border border-lantern-500/30 bg-canopy-950 hover:border-lantern-400 transition shadow-lg"
           >
-            {/* Embedded Interactive Map Preview */}
             <div className="h-28 w-full relative bg-slate-900 overflow-hidden">
               <iframe
                 title="JIPMER Location Map"
@@ -155,9 +180,14 @@ export default function Footer({ setActiveTab }) {
         </div>
 
         <div className="flex items-center gap-4 text-right">
-          <span className="font-mono text-lantern-300/80 text-[11px]">
-            #Spandan2026 #TheEnchantedReverie
-          </span>
+          <a
+            href={instagramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-pink-300 hover:text-pink-200 text-[11px] flex items-center gap-1 transition"
+          >
+            <span>#jipmer_spandan</span>
+          </a>
           {setActiveTab && (
             <button
               onClick={() => {

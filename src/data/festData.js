@@ -176,21 +176,159 @@ export const eventsList = [
   { id: "tlc-quiz", title: "Travel, Living & Culture Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "World culture, travel and lifestyle trivia." },
   { id: "rewind-quiz", title: "Rewind Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "Nostalgia and retro events quiz." },
 
-  // Les Jeux (Sports)
-  { id: "cricket", title: "Cricket (M)", category: "sports", contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801", price: 0, desc: "Men's cricket tournament." },
-  { id: "football", title: "Football (M)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Men's football tournament." },
-  { id: "futsal", title: "Futsal (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Fast-paced indoor soccer." },
-  { id: "basketball", title: "Basketball (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Men's & Women's court basketball." },
-  { id: "volleyball", title: "Volleyball (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Men's & Women's volleyball." },
-  { id: "hockey", title: "Hockey (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Field hockey tournament." },
-  { id: "throwball", title: "Throwball (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Throwball tournament." },
-  { id: "badminton", title: "Badminton (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Badminton singles and doubles." },
-  { id: "tennis", title: "Tennis (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Lawn tennis tournament." },
-  { id: "table-tennis", title: "Table Tennis (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Table tennis tournament." },
-  { id: "aquatics", title: "Aquatics (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Swimming and water sports events." },
-  { id: "chess", title: "Chess", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Strategic board battles." },
-  { id: "carrom", title: "Carrom", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Carrom tournament." },
-  { id: "athletics", title: "Athletics (M/W)", category: "sports", contact: "Vinay / Nikhitha / Mirshad", price: 0, desc: "Track and field events." },
+  // ==========================================
+  // LES JEUX (SPORTS) - TEAM & NON-TEAM SPORTS
+  // ==========================================
+  
+  // --- TEAM SPORTS ---
+  {
+    id: "basketball",
+    category: "sports",
+    type: "Team Sports",
+    title: "Basketball",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "Court battles across divisions.",
+    subEvents: ["Men's", "Women's"]
+  },
+  {
+    id: "cricket",
+    category: "sports",
+    type: "Team Sports",
+    title: "Cricket",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "Intercollegiate men's cricket tournament.",
+    subEvents: ["Men's"]
+  },
+  {
+    id: "football",
+    category: "sports",
+    type: "Team Sports",
+    title: "Football",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "11v11 intercollegiate football championship.",
+    subEvents: ["Men's"]
+  },
+  {
+    id: "futsal",
+    category: "sports",
+    type: "Team Sports",
+    title: "Futsal",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "High-octane indoor short-format soccer.",
+    subEvents: ["Men's", "Women's"]
+  },
+  {
+    id: "hockey",
+    category: "sports",
+    type: "Team Sports",
+    title: "Hockey",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "Field hockey tournaments in 11s and 5s formats.",
+    subEvents: ["Hockey 11s", "Hockey 5s (Men's)", "Hockey 5s (Women's)"]
+  },
+  {
+    id: "throwball",
+    category: "sports",
+    type: "Team Sports",
+    title: "Throwball",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "High-energy aerial rallies across categories.",
+    subEvents: ["Men's", "Women's"]
+  },
+  {
+    id: "volleyball",
+    category: "sports",
+    type: "Team Sports",
+    title: "Volleyball",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "Spikes, digs, and team net battles.",
+    subEvents: ["Men's", "Women's"]
+  },
+
+  // --- NON-TEAM SPORTS ---
+  {
+    id: "aquatics",
+    category: "sports",
+    type: "Non-Team Sports",
+    title: "Aquatics",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "Competitive swimming & aquatic events.",
+    subEvents: ["TBD 1", "TBD 2"]
+  },
+  {
+    id: "athletics",
+    category: "sports",
+    type: "Non-Team Sports",
+    title: "Athletics",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "Track & field events.",
+    subEvents: ["TBD 1", "TBD 2"]
+  },
+  {
+    id: "badminton",
+    category: "sports",
+    type: "Non-Team Sports",
+    title: "Badminton",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "Fast shuttlecraft singles & doubles tournaments.",
+    subEvents: ["Singles", "Doubles", "Mixed Doubles"]
+  },
+  {
+    id: "carrom",
+    category: "sports",
+    type: "Non-Team Sports",
+    title: "Carrom",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "Precision carrom board tournament.",
+    subEvents: ["Singles", "Doubles"]
+  },
+  {
+    id: "chess",
+    category: "sports",
+    type: "Non-Team Sports",
+    title: "Chess",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "Mind games across rapid, blitz, bullet, and team setups.",
+    subEvents: ["Rapid", "Blitz", "Bullet", "Team"]
+  },
+  {
+    id: "table-tennis",
+    category: "sports",
+    type: "Non-Team Sports",
+    title: "Table Tennis",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "High speed table tennis rallies.",
+    subEvents: ["TBD 1", "TBD 2"]
+  },
+  {
+    id: "tennis",
+    category: "sports",
+    type: "Non-Team Sports",
+    title: "Tennis",
+    price: 0,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    desc: "Lawn tennis championships across all categories.",
+    subEvents: [
+      "Men's Singles",
+      "Men's Doubles",
+      "Women's Singles",
+      "Women's Doubles",
+      "Mixed Doubles"
+    ]
+  },
 
   // Game Over
   { id: "gaming-online", title: "BGMI & CODM Tournaments (Online)", category: "gaming", contact: "Prudhvi: 8056765218", price: 0, desc: "Online mobile esports competition." },
