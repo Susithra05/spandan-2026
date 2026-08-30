@@ -253,23 +253,13 @@ export default function App() {
   const [authMode, setAuthMode] = useState("login");
   const [authMessage, setAuthMessage] = useState("");
 
-  // UTR State
+  // Payment Screenshot State
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState(null);
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        // 5MB limit check
-        alert(
-          "File size exceeds 5MB limit. Please upload a smaller screenshot.",
-        );
-        return;
-      }
-      setPaymentScreenshot(file);
-      setScreenshotPreview(URL.createObjectURL(file));
-    }
-  };
+
+  // College ID Card State
+  const [idCardFile, setIdCardFile] = useState(null);
+  const [idCardPreview, setIdCardPreview] = useState(null);
 
   // Registration & Pass Selection State
   const [selectedPassType, setSelectedPassType] = useState("tier"); // 'tier' | 'club'
@@ -278,7 +268,7 @@ export default function App() {
     phone: "",
     college: "",
     yearOfStudy: "1st Year",
-    selectedPassId: "tier-two", // Default selection
+    selectedPassId: "tier-two",
     selectedEvents: [],
   });
 
@@ -298,6 +288,30 @@ export default function App() {
 
     return () => subscription?.unsubscribe();
   }, []);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Payment screenshot size must be under 5MB.");
+        return;
+      }
+      setPaymentScreenshot(file);
+      setScreenshotPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleIdCardChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("ID card image size must be under 5MB.");
+        return;
+      }
+      setIdCardFile(file);
+      setIdCardPreview(URL.createObjectURL(file));
+    }
+  };
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -368,52 +382,75 @@ export default function App() {
       return;
     }
 
-    if (!formData.selectedPassId) {
-      alert(
-        "Please select at least one Delegate Tier or Club Pass to proceed.",
-      );
+    // Validate 10-digit phone number
+    const cleanPhone = formData.phone.replace(/\D/g, "");
+    if (cleanPhone.length !== 10) {
+      alert("Please enter a valid 10-digit phone number.");
+      return;
+    }
+
+    if (!idCardFile) {
+      alert("Please upload a photo of your College ID card.");
       return;
     }
 
     if (!paymentScreenshot) {
-      alert("Please upload a payment screenshot / receipt image.");
+      alert("Please upload your payment screenshot.");
+      return;
+    }
+
+    if (!formData.selectedPassId) {
+      alert("Please select at least one Delegate Tier or Club Pass.");
       return;
     }
 
     setSubmitting(true);
     try {
-      // 1. Upload screenshot to Supabase Storage
-      const fileExt = paymentScreenshot.name.split(".").pop();
-      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-      const filePath = `receipts/${fileName}`;
+      // 1. Upload College ID Card
+      const idExt = idCardFile.name.split(".").pop();
+      const idFileName = `id_${user.id}_${Date.now()}.${idExt}`;
+      const idFilePath = `id_cards/${idFileName}`;
 
-      const { error: uploadError } = await supabase.storage
+      const { error: idUploadError } = await supabase.storage
         .from("payment-screenshots")
-        .upload(filePath, paymentScreenshot);
+        .upload(idFilePath, idCardFile);
 
-      if (uploadError) throw uploadError;
+      if (idUploadError) throw idUploadError;
 
-      // 2. Get Public URL of the uploaded image
-      const { data: urlData } = supabase.storage
+      const { data: idUrlData } = supabase.storage
         .from("payment-screenshots")
-        .getPublicUrl(filePath);
+        .getPublicUrl(idFilePath);
 
-      const paymentScreenshotUrl = urlData.publicUrl;
+      // 2. Upload Payment Screenshot
+      const payExt = paymentScreenshot.name.split(".").pop();
+      const payFileName = `pay_${user.id}_${Date.now()}.${payExt}`;
+      const payFilePath = `receipts/${payFileName}`;
 
-      // 3. Save registration details to Supabase Database
+      const { error: payUploadError } = await supabase.storage
+        .from("payment-screenshots")
+        .upload(payFilePath, paymentScreenshot);
+
+      if (payUploadError) throw payUploadError;
+
+      const { data: payUrlData } = supabase.storage
+        .from("payment-screenshots")
+        .getPublicUrl(payFilePath);
+
+      // 3. Save Registration Details
       const { error } = await supabase.from("registrations").insert([
         {
           user_id: user.id,
           full_name: formData.fullName,
           email: user.email,
-          phone: formData.phone,
+          phone: cleanPhone,
           college: formData.college,
           year_of_study: formData.yearOfStudy,
           pass_type: selectedPassType,
           pass_id: formData.selectedPassId,
           selected_events: formData.selectedEvents,
           total_amount: grandTotal,
-          payment_screenshot_url: paymentScreenshotUrl, // Stores screenshot image URL
+          id_card_url: idUrlData.publicUrl,
+          payment_screenshot_url: payUrlData.publicUrl,
           payment_status: "PENDING_VERIFICATION",
         },
       ]);
@@ -422,6 +459,8 @@ export default function App() {
       setRegisteredSuccess(true);
       setPaymentScreenshot(null);
       setScreenshotPreview(null);
+      setIdCardFile(null);
+      setIdCardPreview(null);
     } catch (err) {
       alert("Registration failed: " + err.message);
     } finally {
@@ -1079,8 +1118,8 @@ export default function App() {
                     Registration Submitted!
                   </h4>
                   <p className="text-sm text-parchment-100/70">
-                    Your details and selected events have been saved to the
-                    Spandan database.
+                    Your details, college ID, and payment receipt have been
+                    saved to the Spandan database.
                   </p>
                   <button
                     onClick={() => setRegisteredSuccess(false)}
@@ -1095,14 +1134,15 @@ export default function App() {
                   className="space-y-6 text-xs"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-slate-300 mb-1">
+                    {/* Full Name Field */}
+                    <div className="text-left space-y-1">
+                      <label className="text-xs font-semibold text-slate-300 block">
                         Full Name <span className="text-toadstool-400">*</span>
                       </label>
                       <input
                         required
                         type="text"
-                        placeholder="Susithra..."
+                        placeholder="Enter your full name"
                         value={formData.fullName}
                         onChange={(e) =>
                           setFormData({ ...formData, fullName: e.target.value })
@@ -1110,34 +1150,43 @@ export default function App() {
                         className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
                       />
                     </div>
-                    <div>
-                      <label className="block text-slate-300 mb-1">
+
+                    {/* Phone Field (Strict 10 digits) */}
+                    <div className="text-left space-y-1">
+                      <label className="text-xs font-semibold text-slate-300 block">
                         Phone Number (WhatsApp){" "}
                         <span className="text-toadstool-400">*</span>
                       </label>
                       <input
                         required
                         type="tel"
-                        placeholder="+91 98765 43210"
+                        maxLength={10}
+                        pattern="[0-9]{10}"
+                        placeholder="9876543210"
                         value={formData.phone}
-                        onChange={(e) =>
-                          setFormData({ ...formData, phone: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
+                        onChange={(e) => {
+                          const onlyNums = e.target.value.replace(/\D/g, "");
+                          if (onlyNums.length <= 10) {
+                            setFormData({ ...formData, phone: onlyNums });
+                          }
+                        }}
+                        className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40 font-mono"
                       />
+                      <span className="text-[10px] text-slate-400 block">
+                        Must be exactly 10 digits (without +91)
+                      </span>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-slate-300 mb-1">
+                    {/* College / Institution */}
+                    <div className="text-left space-y-1">
+                      <label className="text-xs font-semibold text-slate-300 block">
                         College / Institution{" "}
                         <span className="text-toadstool-400">*</span>
                       </label>
                       <input
                         required
                         type="text"
-                        placeholder="JIPMER / Medical College"
+                        placeholder="Enter college name"
                         value={formData.college}
                         onChange={(e) =>
                           setFormData({ ...formData, college: e.target.value })
@@ -1145,8 +1194,10 @@ export default function App() {
                         className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
                       />
                     </div>
-                    <div>
-                      <label className="block text-slate-300 mb-1">
+
+                    {/* Year of Study */}
+                    <div className="text-left space-y-1">
+                      <label className="text-xs font-semibold text-slate-300 block">
                         Year of Study
                       </label>
                       <select
@@ -1159,13 +1210,43 @@ export default function App() {
                         }
                         className="w-full px-4 py-2.5 rounded-xl bg-[#1c3226] border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
                       >
-                        <option>1st Year</option>
-                        <option>2nd Year</option>
-                        <option>3rd Year</option>
-                        <option>Final Year</option>
-                        <option>Intern / Post-Graduate</option>
+                        <option value="1st Year">1st Year</option>
+                        <option value="2nd Year">2nd Year</option>
+                        <option value="3rd Year">3rd Year</option>
+                        <option value="4th Year">4th Year</option>
+                        <option value="Intern / Post-Graduate">
+                          Intern / Post-Graduate
+                        </option>
                       </select>
                     </div>
+                  </div>
+
+                  {/* COMPULSORY COLLEGE ID CARD PHOTO UPLOAD */}
+                  <div className="text-left space-y-2 pt-2 border-t border-white/10">
+                    <label className="text-xs font-semibold text-slate-300 block">
+                      Upload College ID Card Photo{" "}
+                      <span className="text-toadstool-400">*</span>
+                    </label>
+                    <input
+                      required
+                      type="file"
+                      accept="image/*"
+                      onChange={handleIdCardChange}
+                      className="w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-lantern-500/20 file:text-lantern-200 hover:file:bg-lantern-500/30 cursor-pointer bg-canopy-950/50 p-2 rounded-xl border border-white/10"
+                    />
+
+                    {idCardPreview && (
+                      <div className="mt-2 relative w-full max-w-xs rounded-xl overflow-hidden border border-lantern-400/40 p-1 bg-canopy-950">
+                        <img
+                          src={idCardPreview}
+                          alt="ID Card Preview"
+                          className="w-full h-32 object-contain rounded-lg"
+                        />
+                        <span className="text-[10px] text-emerald-400 block text-center mt-1 font-semibold">
+                          ✓ ID Card Attached
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Event Checkbox Selection */}
@@ -1228,7 +1309,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* UPI QR Payment & UTR Input Block */}
+                  {/* UPI QR Payment & Screenshot Upload Block */}
                   <div className="p-5 rounded-2xl bg-white/5 border border-lantern-500/30 text-center space-y-4 my-6">
                     <div className="space-y-1">
                       <h4 className="text-sm font-bold text-lantern-300">
@@ -1265,7 +1346,7 @@ export default function App() {
                       </p>
                     </div>
 
-                    {/* Replace UTR Text Input with Payment Screenshot Upload */}
+                    {/* Payment Screenshot Upload */}
                     <div className="text-left space-y-2 pt-2">
                       <label className="text-[11px] text-slate-300 font-semibold block">
                         Upload Payment Screenshot / Receipt{" "}
