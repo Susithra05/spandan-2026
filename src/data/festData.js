@@ -4,7 +4,7 @@ export const festDetails = {
   theme: "The Enchanted Reverie",
   tagline: "Where reality stutters… and the impossible feels strangely familiar.",
   dates: "October 26 – November 1, 2026",
-  targetDate: "2026-10-26T09:00:00+05:30", // Start timestamp for Countdown
+  targetDate: "2026-10-26T09:00:00+05:30",
   venue: "JIPMER Campus, Pondicherry",
   instagram: "jipmer_spandan",
 };
@@ -117,70 +117,66 @@ export const eventCategories = [
 ];
 
 export const eventsList = [
-  // Fine Arts (Les Beaux Arts)
-  { id: "painting", title: "Painting", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 0, desc: "Express the wonderland on canvas." },
-  { id: "sketching", title: "Sketching", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 0, desc: "Express the wonderland on paper with sketches." },
-  { id: "collage", title: "Collage", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 0, desc: "Creative collage art competition." },
-  { id: "face-painting", title: "Face Painting", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 0, desc: "Canvas on skin with surreal concepts." },
-  { id: "mehendi", title: "Mehendi", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 0, desc: "Intricate traditional and creative henna styling." },
-  { id: "pot-painting", title: "Pot Painting", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 0, desc: "Terracotta painting with vibrant themes." },
+  // Fine Arts (Les Beaux Arts / Motif)
+  { id: "painting", title: "Painting", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 100, desc: "Express the wonderland on canvas." },
+  { id: "sketching", title: "Sketching", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 100, desc: "Express the wonderland on paper with sketches." },
+  { id: "collage", title: "Collage", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 100, desc: "Creative collage art competition." },
+  { id: "face-painting", title: "Face Painting", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 100, desc: "Canvas on skin with surreal concepts." },
+  { id: "mehendi", title: "Mehendi", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 100, desc: "Intricate traditional and creative henna styling." },
+  { id: "pot-painting", title: "Pot Painting", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 100, desc: "Terracotta painting with vibrant themes." },
 
   // Cultural Major
-  { id: "chorea-theme", title: "Chorea (Theme Group Dance)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 0, desc: "Flagship group choreography matching the reverie theme." },
-  { id: "chorea-non-theme-eastern", title: "Chorea (Non-Theme Eastern Group Dance)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 0, desc: "High octane eastern group dance competition." },
-  { id: "chorea-non-theme-western", title: "Chorea (Non-Theme Western Group Dance)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 0, desc: "Electrifying western group dance competition." },
-  { id: "alaap", title: "Alaap (Eastern BoB)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 0, desc: "Eastern Battle of the Bands live on stage." },
-  { id: "tinnitus", title: "Tinnitus (Western BoB)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 0, desc: "Western rock and metal Battle of the Bands." },
-  { id: "dernier-cri", title: "Dernier Cri (Fashion Show)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 0, desc: "The premier runway fashion spectacle." },
+  { id: "chorea-theme", title: "Chorea (Theme Group Dance)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 250, desc: "Flagship group choreography matching the reverie theme." },
+  { id: "chorea-non-theme-eastern", title: "Chorea (Non-Theme Eastern Group Dance)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 250, desc: "High octane eastern group dance competition." },
+  { id: "chorea-non-theme-western", title: "Chorea (Non-Theme Western Group Dance)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 250, desc: "Electrifying western group dance competition." },
+  { id: "alaap", title: "Alaap (Eastern BoB)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 200, desc: "Eastern Battle of the Bands live on stage." },
+  { id: "tinnitus", title: "Tinnitus (Western BoB)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 200, desc: "Western rock and metal Battle of the Bands." },
+  { id: "dernier-cri", title: "Dernier Cri (Fashion Show)", category: "cult-major", contact: "Kavyanjali: 7892741773", price: 250, desc: "The premier runway fashion spectacle." },
 
   // Cultural Minor
-  { id: "solo-dance-eastern", title: "Solo Dance (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Individual eastern dance style showcase." },
-  { id: "solo-dance-western", title: "Solo Dance (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Individual western dance style showcase." },
-  { id: "duet-dance-eastern", title: "Duet Dance (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Synchronized eastern duet dance." },
-  { id: "duet-dance-western", title: "Duet Dance (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Synchronized western duet dance." },
-  { id: "solo-singing-eastern", title: "Solo Singing (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Eastern solo vocal performance." },
-  { id: "solo-singing-western", title: "Solo Singing (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Western solo vocal performance." },
-  { id: "duet-singing-eastern", title: "Duet Singing (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Harmonized eastern vocal duets." },
-  { id: "duet-singing-western", title: "Duet Singing (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Harmonized western vocal duets." },
-  { id: "adaptunes", title: "Adaptunes", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Instant choreography on dynamic changing tracks." },
-  { id: "showdown", title: "Showdown", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "High intensity stage dance face-off." },
-  { id: "euphony", title: "Euphony (Acoustics)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Unplugged acoustic melodies." },
-  { id: "play", title: "Play", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Full stage theatrical play production." },
-  { id: "skit", title: "Skit", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Short comedic or thematic theatrical performance." },
-  { id: "mime", title: "Mime", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Silent storytelling performance art." },
-  { id: "solo-instrumental", title: "Solo Instrumental", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Solo instrumental musical performance." },
-  { id: "adzap", title: "Adzap", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Creative advertising and presentation showdown." },
+  { id: "solo-dance-eastern", title: "Solo Dance (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Individual eastern dance style showcase." },
+  { id: "solo-dance-western", title: "Solo Dance (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Individual western dance style showcase." },
+  { id: "duet-dance-eastern", title: "Duet Dance (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Synchronized eastern duet dance." },
+  { id: "duet-dance-western", title: "Duet Dance (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Synchronized western duet dance." },
+  { id: "solo-singing-eastern", title: "Solo Singing (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Eastern solo vocal performance." },
+  { id: "solo-singing-western", title: "Solo Singing (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Western solo vocal performance." },
+  { id: "duet-singing-eastern", title: "Duet Singing (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Harmonized eastern vocal duets." },
+  { id: "duet-singing-western", title: "Duet Singing (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Harmonized western vocal duets." },
+  { id: "adaptunes", title: "Adaptunes", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Instant choreography on dynamic changing tracks." },
+  { id: "showdown", title: "Showdown", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 125, desc: "High intensity stage dance face-off." },
+  { id: "euphony", title: "Euphony (Acoustics)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Unplugged acoustic melodies." },
+  { id: "play", title: "Play", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Full stage theatrical play production." },
+  { id: "skit", title: "Skit", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Short comedic or thematic theatrical performance." },
+  { id: "mime", title: "Mime", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Silent storytelling performance art." },
+  { id: "solo-instrumental", title: "Solo Instrumental", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Solo instrumental musical performance." },
+  { id: "adzap", title: "Adzap", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Creative advertising and presentation showdown." },
 
   // House Informals
-  { id: "arcane-heist", title: "Arcane Heist", category: "informals", contact: "Krishnendu: 9048016206", price: 0, desc: "Immersive campus heist challenge." },
-  { id: "beg-borrow-steal", title: "Beg Borrow Steal", category: "informals", contact: "Krishnendu: 9048016206", price: 0, desc: "Classic high-energy scavenger hunt." },
+  { id: "arcane-heist", title: "Arcane Heist", category: "informals", contact: "Krishnendu: 9048016206", price: 300, desc: "Immersive campus heist challenge (₹300 per team)." },
+  { id: "beg-borrow-steal", title: "Beg Borrow Steal", category: "informals", contact: "Krishnendu: 9048016206", price: 160, desc: "Classic high-energy scavenger hunt (₹160 per team)." },
 
   // La Lutte (MediQuiz)
   { id: "la-lutte-junior", title: "La Lutte (Junior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 0, desc: "Intercollegiate Medical Quiz for juniors." },
   { id: "la-lutte-senior", title: "La Lutte (Senior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 0, desc: "Intercollegiate Medical Quiz for seniors." },
 
   // Literary (Les Littéraires)
-  { id: "formal-debate", title: "Formal Debate", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "Rigorous formal argumentation showdown." },
-  { id: "malarkey", title: "Malarkey (Informal Debate)", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "Witty, humorous informal debate battle." },
-  { id: "directors-cut", title: "Director's Cut", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "Cinematic literary adaptation event." },
-  { id: "cryptic-crossword", title: "Cryptic Crossword", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "Mind-bending word puzzles and cryptic clues." },
-  { id: "potpourri", title: "Potpourri (dumbc + picto)", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "Dumb charades and pictionary combo." },
-  { id: "jam", title: "JAM (Just a Minute)", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "No hesitation, repetition, or deviation." },
-  { id: "turn-coat", title: "Turn Coat", category: "literary", contact: "Akash: 9701344959", price: 0, desc: "Switching perspectives mid-speech." },
+  { id: "formal-debate", title: "Formal Debate", category: "literary", contact: "Akash: 9701344959", price: 250, desc: "Rigorous formal argumentation showdown." },
+  { id: "malarkey", title: "Malarkey (Informal Debate)", category: "literary", contact: "Akash: 9701344959", price: 150, desc: "Witty, humorous informal debate battle." },
+  { id: "directors-cut", title: "Director's Cut", category: "literary", contact: "Akash: 9701344959", price: 150, desc: "Cinematic literary adaptation event." },
+  { id: "cryptic-crossword", title: "Cryptic Crossword", category: "literary", contact: "Akash: 9701344959", price: 250, desc: "Mind-bending word puzzles and cryptic clues." },
+  { id: "potpourri", title: "Potpourri (dumbc + picto)", category: "literary", contact: "Akash: 9701344959", price: 150, desc: "Dumb charades and pictionary combo." },
+  { id: "jam", title: "JAM (Just a Minute)", category: "literary", contact: "Akash: 9701344959", price: 250, desc: "No hesitation, repetition, or deviation." },
+  { id: "turn-coat", title: "Turn Coat", category: "literary", contact: "Akash: 9701344959", price: 150, desc: "Switching perspectives mid-speech." },
 
   // Quizzes (Les Littéraires)
-  { id: "tj-jaishankar-quiz", title: "TJ Jaishankar Memorial Open Quiz by Major Chandrakant Nair", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "Flagship open general quiz." },
-  { id: "sports-quiz", title: "Sports Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "Ultimate trivia for sports enthusiasts." },
-  { id: "fandom-quiz", title: "Fandom Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "Pop culture, movies, TV shows and books quiz." },
-  { id: "literature-quiz", title: "Literature Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "Literary trivia and classic works." },
-  { id: "tlc-quiz", title: "Travel, Living & Culture Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "World culture, travel and lifestyle trivia." },
-  { id: "rewind-quiz", title: "Rewind Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 0, desc: "Nostalgia and retro events quiz." },
+  { id: "tj-jaishankar-quiz", title: "TJ Jaishankar Memorial Open Quiz by Major Chandrakant Nair", category: "quiz", contact: "Sai Ajay: 6360913421", price: 250, desc: "Flagship open general quiz." },
+  { id: "sports-quiz", title: "Sports Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 150, desc: "Ultimate trivia for sports enthusiasts." },
+  { id: "fandom-quiz", title: "Fandom Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 150, desc: "Pop culture, movies, TV shows and books quiz." },
+  { id: "literature-quiz", title: "Literature Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 150, desc: "Literary trivia and classic works." },
+  { id: "tlc-quiz", title: "Travel, Living & Culture Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 150, desc: "World culture, travel and lifestyle trivia." },
+  { id: "rewind-quiz", title: "Rewind Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 150, desc: "Nostalgia and retro events quiz." },
 
-  // ==========================================
-  // LES JEUX (SPORTS) - TEAM & NON-TEAM SPORTS
-  // ==========================================
-  
-  // --- TEAM SPORTS ---
+  // Les Jeux (Sports)
   {
     id: "basketball",
     category: "sports",
@@ -251,8 +247,6 @@ export const eventsList = [
     desc: "Spikes, digs, and team net battles.",
     subEvents: ["Men's", "Women's"]
   },
-
-  // --- NON-TEAM SPORTS ---
   {
     id: "aquatics",
     category: "sports",

@@ -254,7 +254,22 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState("");
 
   // UTR State
-  const [utrNumber, setUtrNumber] = useState("");
+  const [paymentScreenshot, setPaymentScreenshot] = useState(null);
+  const [screenshotPreview, setScreenshotPreview] = useState(null);
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        // 5MB limit check
+        alert(
+          "File size exceeds 5MB limit. Please upload a smaller screenshot.",
+        );
+        return;
+      }
+      setPaymentScreenshot(file);
+      setScreenshotPreview(URL.createObjectURL(file));
+    }
+  };
 
   // Registration & Pass Selection State
   const [selectedPassType, setSelectedPassType] = useState("tier"); // 'tier' | 'club'
@@ -360,13 +375,32 @@ export default function App() {
       return;
     }
 
-    if (!utrNumber || utrNumber.trim().length < 10) {
-      alert("Please enter a valid 12-digit UTR / UPI Reference Number.");
+    if (!paymentScreenshot) {
+      alert("Please upload a payment screenshot / receipt image.");
       return;
     }
 
     setSubmitting(true);
     try {
+      // 1. Upload screenshot to Supabase Storage
+      const fileExt = paymentScreenshot.name.split(".").pop();
+      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+      const filePath = `receipts/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("payment-screenshots")
+        .upload(filePath, paymentScreenshot);
+
+      if (uploadError) throw uploadError;
+
+      // 2. Get Public URL of the uploaded image
+      const { data: urlData } = supabase.storage
+        .from("payment-screenshots")
+        .getPublicUrl(filePath);
+
+      const paymentScreenshotUrl = urlData.publicUrl;
+
+      // 3. Save registration details to Supabase Database
       const { error } = await supabase.from("registrations").insert([
         {
           user_id: user.id,
@@ -379,14 +413,15 @@ export default function App() {
           pass_id: formData.selectedPassId,
           selected_events: formData.selectedEvents,
           total_amount: grandTotal,
-          utr_number: utrNumber.trim(),
+          payment_screenshot_url: paymentScreenshotUrl, // Stores screenshot image URL
           payment_status: "PENDING_VERIFICATION",
         },
       ]);
 
       if (error) throw error;
       setRegisteredSuccess(true);
-      setUtrNumber("");
+      setPaymentScreenshot(null);
+      setScreenshotPreview(null);
     } catch (err) {
       alert("Registration failed: " + err.message);
     } finally {
@@ -1230,20 +1265,34 @@ export default function App() {
                       </p>
                     </div>
 
-                    {/* UTR Input */}
-                    <div className="text-left space-y-1 pt-2">
+                    {/* Replace UTR Text Input with Payment Screenshot Upload */}
+                    <div className="text-left space-y-2 pt-2">
                       <label className="text-[11px] text-slate-300 font-semibold block">
-                        12-Digit UTR / UPI Reference Number{" "}
+                        Upload Payment Screenshot / Receipt{" "}
                         <span className="text-toadstool-400">*</span>
                       </label>
+
                       <input
                         required
-                        type="text"
-                        placeholder="e.g. 423189056123"
-                        value={utrNumber}
-                        onChange={(e) => setUtrNumber(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-white/10 text-parchment-50 font-mono text-xs focus:outline-none focus:border-mist-400"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-lantern-500/20 file:text-lantern-200 hover:file:bg-lantern-500/30 cursor-pointer bg-canopy-950/50 p-2 rounded-xl border border-white/10"
                       />
+
+                      {/* Image Preview Box */}
+                      {screenshotPreview && (
+                        <div className="mt-3 relative w-full max-w-xs mx-auto rounded-xl overflow-hidden border border-lantern-400/40 p-1 bg-canopy-950">
+                          <img
+                            src={screenshotPreview}
+                            alt="Payment Receipt Preview"
+                            className="w-full h-36 object-contain rounded-lg"
+                          />
+                          <span className="text-[10px] text-emerald-400 block text-center mt-1 font-semibold">
+                            ✓ Image Attached Ready for Upload
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
