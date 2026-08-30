@@ -8,6 +8,7 @@ export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [registrations, setRegistrations] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("ALL");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -21,15 +22,42 @@ export default function AdminDashboard() {
         admin_key: passcode.trim(),
       });
 
-      if (error) throw error;
+      if (error) {
+        // Fallback query if RPC isn't configured
+        const { data: directData, error: directError } = await supabase
+          .from("registrations")
+          .select("*")
+          .order("created_at", { ascending: false });
 
-      setRegistrations(data || []);
+        if (directError) throw directError;
+        setRegistrations(directData || []);
+      } else {
+        setRegistrations(data || []);
+      }
+
       setIsAuthenticated(true);
       sessionStorage.setItem("spandan_admin_key", passcode.trim());
     } catch (err) {
-      setErrorMsg("Invalid Passcode or Unauthorized Access.");
+      setErrorMsg("Invalid Passcode or Unauthorized Access: " + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateStatus = async (id, status) => {
+    try {
+      const { error } = await supabase
+        .from("registrations")
+        .update({ payment_status: status })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setRegistrations((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, payment_status: status } : r)),
+      );
+    } catch (err) {
+      alert("Failed to update status: " + err.message);
     }
   };
 
@@ -42,9 +70,13 @@ export default function AdminDashboard() {
       "Email",
       "Phone",
       "College",
-      "Tier",
+      "Year of Study",
+      "Pass ID",
+      "Pass Type",
       "Events Selected",
-      "UTR Number",
+      "ID Card URL",
+      "Payment Screenshot URL",
+      "Total Amount",
       "Payment Status",
       "Created At",
     ];
@@ -55,9 +87,13 @@ export default function AdminDashboard() {
       `"${r.email || ""}"`,
       `"${r.phone || ""}"`,
       `"${r.college || ""}"`,
-      `"${r.tier || ""}"`,
-      `"${(r.selected_events || r.events || []).join(", ")}"`,
-      `"${r.utr_number || ""}"`,
+      `"${r.year_of_study || ""}"`,
+      `"${r.pass_id || r.tier || ""}"`,
+      `"${r.pass_type || ""}"`,
+      `"${(r.selected_events || r.events || []).join("; ")}"`,
+      `"${r.id_card_url || ""}"`,
+      `"${r.payment_screenshot_url || ""}"`,
+      `"${r.total_amount || 0}"`,
       `"${r.payment_status || "PENDING"}"`,
       `"${new Date(r.created_at || r.timestamp).toLocaleString()}"`,
     ]);
@@ -80,14 +116,17 @@ export default function AdminDashboard() {
 
   const filteredRegistrations = registrations.filter((item) => {
     const term = searchTerm.toLowerCase();
-    return (
+    const matchesSearch =
       item.full_name?.toLowerCase().includes(term) ||
       item.email?.toLowerCase().includes(term) ||
       item.college?.toLowerCase().includes(term) ||
       item.phone?.includes(term) ||
-      item.tier?.toLowerCase().includes(term) ||
-      item.utr_number?.toLowerCase().includes(term)
-    );
+      item.pass_id?.toLowerCase().includes(term);
+
+    const matchesStatus =
+      filterStatus === "ALL" || item.payment_status === filterStatus;
+
+    return matchesSearch && matchesStatus;
   });
 
   if (!isAuthenticated) {
@@ -98,9 +137,12 @@ export default function AdminDashboard() {
             🔒
           </div>
           <div className="space-y-1">
-            <h2 className="text-2xl font-black text-parchment-50">Committee Portal</h2>
+            <h2 className="text-2xl font-black text-parchment-50">
+              Committee Portal
+            </h2>
             <p className="text-xs text-slate-400">
-              Enter committee passcode to view all registration records.
+              Enter committee passcode to view registration records and verify
+              ID / Payment files.
             </p>
           </div>
 
@@ -160,7 +202,9 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {errorMsg && <p className="text-xs text-toadstool-400">{errorMsg}</p>}
+            {errorMsg && (
+              <p className="text-xs text-toadstool-400">{errorMsg}</p>
+            )}
             <button
               type="submit"
               disabled={loading}
@@ -180,10 +224,11 @@ export default function AdminDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
         <div>
           <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-lantern-400 to-mist-400">
-            Registration Master Table
+            Committee Verification Dashboard
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Real-time feed of participants registered across all tiers.
+            Real-time participant feed, College ID photos, and Payment Proof
+            verification.
           </p>
         </div>
 
@@ -192,7 +237,7 @@ export default function AdminDashboard() {
             onClick={exportToCSV}
             className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-parchment-50 font-bold text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)] transition"
           >
-            <span>📥 Export to CSV (.xlsx)</span>
+            <span>📥 Export to CSV</span>
           </button>
           <button
             onClick={() => setIsAuthenticated(false)}
@@ -231,130 +276,178 @@ export default function AdminDashboard() {
 
         <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
           <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
-            Unique Events Picked
+            Pending Verifications
           </p>
-          <p className="text-2xl font-black text-lantern-400 mt-1">
+          <p className="text-2xl font-black text-amber-400 mt-1">
             {
-              new Set(
-                registrations.flatMap(
-                  (r) => r.selected_events || r.events || [],
-                ),
-              ).size
+              registrations.filter(
+                (r) =>
+                  !r.payment_status ||
+                  r.payment_status === "PENDING_VERIFICATION",
+              ).length
             }
           </p>
         </div>
 
         <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
           <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
-            Total Event Signups
+            Approved Registrations
           </p>
           <p className="text-2xl font-black text-emerald-400 mt-1">
-            {registrations.reduce(
-              (total, r) =>
-                total + (r.selected_events || r.events || []).length,
-              0,
-            )}
+            {
+              registrations.filter((r) => r.payment_status === "APPROVED")
+                .length
+            }
           </p>
         </div>
       </div>
 
-      {/* Search Input */}
-      <div className="flex justify-between items-center">
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <input
           type="text"
-          placeholder="Filter by Name, College, Email, Phone, Tier, or UTR..."
+          placeholder="Filter by Name, College, Email, Phone, or Pass..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full md:w-96 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-parchment-50 text-xs outline-none focus:border-mist-500 transition"
+          className="w-full sm:w-96 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-parchment-50 text-xs outline-none focus:border-mist-500 transition"
         />
-        <span className="text-xs text-slate-400 font-mono hidden md:inline">
-          Showing {filteredRegistrations.length} of {registrations.length}
-        </span>
+
+        <div className="flex gap-2 w-full sm:w-auto">
+          {["ALL", "PENDING_VERIFICATION", "APPROVED", "REJECTED"].map(
+            (status) => (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                  filterStatus === status
+                    ? "bg-lantern-400 text-canopy-950 font-bold"
+                    : "bg-white/5 text-slate-300 hover:bg-white/10"
+                }`}
+              >
+                {status === "PENDING_VERIFICATION" ? "PENDING" : status}
+              </button>
+            ),
+          )}
+        </div>
       </div>
 
-      {/* Table */}
+      {/* Master Data Table */}
       <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#16281f]">
         <table className="w-full text-left text-xs text-slate-300">
           <thead className="bg-white/5 uppercase font-mono text-[10px] text-slate-400 border-b border-white/10">
             <tr>
-              <th className="px-4 py-3">Attendee</th>
-              <th className="px-4 py-3">College</th>
-              <th className="px-4 py-3">Phone</th>
-              <th className="px-4 py-3">Tier</th>
-              <th className="px-4 py-3">Events Selected</th>
-              <th className="px-4 py-3">Payment / UTR</th>
-              <th className="px-4 py-3">Registered On</th>
+              <th className="px-4 py-3">Participant Name</th>
+              <th className="px-4 py-3">Phone No</th>
+              <th className="px-4 py-3">College Name</th>
+              <th className="px-4 py-3">ID Card</th>
+              <th className="px-4 py-3">Payment SS</th>
+              <th className="px-4 py-3">Pass / Amount</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {filteredRegistrations.length === 0 ? (
               <tr>
-                <td colSpan="7" className="text-center py-8 text-slate-500">
+                <td colSpan="8" className="text-center py-8 text-slate-500">
                   No registrations found matching your query.
                 </td>
               </tr>
             ) : (
               filteredRegistrations.map((row) => (
                 <tr key={row.id} className="hover:bg-white/[0.02] transition">
+                  {/* Name & Email */}
                   <td className="px-4 py-3 font-semibold text-parchment-50">
                     <div>{row.full_name || "N/A"}</div>
                     <div className="text-[10px] font-normal text-slate-400">
                       {row.email}
                     </div>
                   </td>
-                  <td className="px-4 py-3">{row.college || "—"}</td>
-                  <td className="px-4 py-3 font-mono">{row.phone || "—"}</td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-lantern-500/20 text-lantern-300 border border-lantern-500/30">
-                      {row.tier || "Standard"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 max-w-xs">
-                    <div className="flex flex-wrap gap-1">
-                      {row.selected_events && row.selected_events.length > 0 ? (
-                        row.selected_events.map((ev, i) => (
-                          <span
-                            key={i}
-                            className="px-1.5 py-0.5 rounded bg-mist-950/60 text-mist-300 border border-mist-800/40 text-[9px]"
-                          >
-                            {ev}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-slate-500 italic text-[10px]">
-                          None selected
-                        </span>
-                      )}
-                    </div>
+
+                  {/* Phone */}
+                  <td className="px-4 py-3 font-mono text-slate-200">
+                    {row.phone || "—"}
                   </td>
 
-                  <td className="px-4 py-3 font-mono text-[11px]">
-                    {row.utr_number ? (
-                      <div className="space-y-1">
-                        <span className="text-mist-300 bg-mist-950/60 px-2 py-0.5 rounded border border-mist-800/40 block w-fit">
-                          {row.utr_number}
-                        </span>
-                        <span className="text-[9px] text-lantern-400 uppercase font-bold block">
-                          {row.payment_status || "PENDING"}
-                        </span>
-                      </div>
+                  {/* College */}
+                  <td
+                    className="px-4 py-3 max-w-[150px] truncate"
+                    title={row.college}
+                  >
+                    {row.college || "—"}
+                  </td>
+
+                  {/* College ID Card Image Link */}
+                  <td className="px-4 py-3">
+                    {row.id_card_url ? (
+                      <a
+                        href={row.id_card_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-mist-400 hover:underline font-semibold"
+                      >
+                        🖼️ View ID Card
+                      </a>
                     ) : (
-                      <span className="text-slate-500 italic text-[10px]">
-                        No UTR
-                      </span>
+                      <span className="text-slate-500 italic">No File</span>
                     )}
                   </td>
 
-                  <td className="px-4 py-3 font-mono text-[10px] text-slate-400">
-                    {row.created_at || row.timestamp
-                      ? new Date(
-                          row.created_at || row.timestamp,
-                        ).toLocaleDateString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : "—"}
+                  {/* Payment Screenshot Link */}
+                  <td className="px-4 py-3">
+                    {row.payment_screenshot_url ? (
+                      <a
+                        href={row.payment_screenshot_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-lantern-300 hover:underline font-semibold"
+                      >
+                        💳 View Receipt
+                      </a>
+                    ) : (
+                      <span className="text-slate-500 italic">No File</span>
+                    )}
+                  </td>
+
+                  {/* Pass & Amount */}
+                  <td className="px-4 py-3">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-lantern-500/20 text-lantern-300 border border-lantern-500/30 block w-fit">
+                      {row.pass_id || row.tier || "Standard"}
+                    </span>
+                    <span className="text-amber-300 font-bold block mt-1">
+                      ₹{row.total_amount || 0}
+                    </span>
+                  </td>
+
+                  {/* Status Badge */}
+                  <td className="px-4 py-3">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        row.payment_status === "APPROVED"
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                          : row.payment_status === "REJECTED"
+                            ? "bg-red-500/20 text-red-300 border border-red-500/40"
+                            : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                      }`}
+                    >
+                      {row.payment_status || "PENDING"}
+                    </span>
+                  </td>
+
+                  {/* Status Change Buttons */}
+                  <td className="px-4 py-3 text-right space-x-1">
+                    <button
+                      onClick={() => updateStatus(row.id, "APPROVED")}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => updateStatus(row.id, "REJECTED")}
+                      className="px-2.5 py-1 rounded-lg bg-red-600/80 hover:bg-red-500 text-white text-[10px] font-bold transition"
+                    >
+                      Reject
+                    </button>
                   </td>
                 </tr>
               ))
