@@ -9,10 +9,113 @@ export const festDetails = {
   instagram: "jipmer_spandan",
 };
 
+export const aboutJipmer = {
+  heading: "About JIPMER",
+  paragraphs: [
+    "JIPMER's origin dates back to 1823 when it was established as \"École de Médicine de Pondicherry\" by the French Government.",
+    "JIPMER's steadfast dedication to academic brilliance and cutting-edge medical research has earned it an eminent position among the best medical colleges in the nation; its exalted status fortified by its designation as an Institute of National Importance. The students of JIPMER embody a rare combination of erudition and versatility, showcasing their multifaceted brilliance in a diverse array of extracurricular pursuits and the academic realm alike. Nestled in the quaint French town of Pondicherry, JIPMER boasts of a lush 195 acre campus.",
+    "Pondicherry is an enchanting costal enclave along the azure waters of the Bay of Bengal. With an amalgamation of its rich cultural heritage, picturesque promenades, unparalleled gastronomic experiences and spiritual renaissance symbolised by Auroville, Pondicherry is swiftly becoming one of the most sought after travel destinations in South India.",
+  ],
+};
+
+export const aboutSpandanExtended = {
+  heading: "About Spandan",
+  paragraphs: [
+    "Spandan — a 5 day long spectacle where reality dissolves into a waking dream, where imagination and magic take center stage, and where medicos from all over the country come together for South India's biggest medical college fest.",
+    "Step into the unknown on the 27th of October, and unravel the mystique on November 1st. Take on challenges in Les Jeux, showcase your artistic brilliance in Les Beaux-Arts, engage in thought-provoking debates at Les Littéraires, display your academic prowess at La Lutte, and revel in the enchanting fun of House Informals.",
+    "Don't miss the captivating highlights of this bonanza: the pro shows and Spandan's iconic ramp walk, the Dernier Cri. Join us as we journey through this \"Enchanted Reverie\" into various mystical realms and wonderland, and create unforgettable memories. After all, it's the thrill of discovery that makes the journey special.",
+  ],
+};
+
+export const registrationProcess = {
+  heading: "Registration Process",
+  points: [
+    "Registration for the fest shall only be carried out through the official Spandan website. Delegate registration is mandatory for participation in any event during the fest (exceptions are mentioned under individual event descriptions).",
+    "Delegate cards are of three tiers (refer to Delegate Tiers).",
+    "Individual club passes are available for Sports, Culturals and Literary events (refer to Club Passes).",
+    "After registering as a delegate, a unique Delegate ID will be assigned to each participant.",
+    "Participants can register for different events as well as for accommodation and food on the Spandan website with their unique Delegate ID.",
+    "You will receive a confirmation email within 24 hours after registering as a delegate and for each individual event following completion of the payment.",
+    "In case you encounter any problems or discrepancies during the registration process, contact the Public Relations team.",
+    "On-spot registration will be open for selected events subject to the availability of slots.",
+  ],
+};
+
+export const onReachingJipmer = {
+  heading: "On Reaching JIPMER",
+  bringItems: [
+    "A valid student ID card",
+    "4 passport size photographs",
+    "A letter of approval from the Head of the Institute, carrying the names of all contingent members and indicating the team leader",
+  ],
+  points: [
+    "Head to the reception room and collect your Delegate Card upon showing the confirmation email and your college ID card.",
+    "After collecting your Delegate Card, head to the respective event desk in the reception room and show the confirmation email(s) for each event you've registered for.",
+    "On-spot registration will also be done in the reception room.",
+  ],
+};
+
+export const accommodation = {
+  heading: "Accommodation",
+  subheading: "The Dreamer's Vale",
+  contact: "Aijaz: 9148746711",
+  points: [
+    "Accommodation booking shall be through the Spandan 2026 official website.",
+    "Both AC and Non-AC rooms can be availed by delegates through the website.",
+    "Basic delegate registration is necessary to avail accommodation.",
+    "A Google Form must be filled by delegates prior to payment with their particulars and other details.",
+    "The team leader can contact the Accommodation in-charges for further details.",
+    "A refundable caution deposit of ₹500/- per head for all delegate card holders should be paid in CASH only at the finance desk in the reception room after arrival.",
+    "The accommodation provided will be basic. Mattresses and buckets will be provided; bed sheets and pillow covers will not be.",
+    "Participants are responsible for returning items in good condition — a fine of ₹4000 applies for missing/damaged mattresses.",
+    "Accommodation will be allotted based on contingent size, date of arrival, and duration of stay.",
+    "Non-AC rooms will mostly be provided in dorms and halls (20+ people per hall). Rooms may have to be shared with delegates of other colleges.",
+    "Accommodation and mattresses are given on a first-come-first-served basis.",
+    "Transportation will not be provided by the organisers.",
+  ],
+  termsHeading: "Terms & Conditions",
+  terms: [
+    "Only the team leader should communicate with the Accommodation Committee.",
+    "You may have to share accommodation facilities with participants from other colleges.",
+    "Locks and keys for luggage will not be provided.",
+    "We are not responsible for any loss of valuables, luggage, or other belongings.",
+    "Smoking, alcohol, or narcotics on campus is strictly prohibited — violations result in strict action.",
+    "A team may be denied participation or disqualified in case of misconduct by its members.",
+    "Damage to college property will be fined from the caution deposit; charges beyond the deposit amount can be levied additionally.",
+    "Decision of the JSA (JIPMER Students' Association) is binding and final in any circumstance.",
+  ],
+};
+
+export const generalGuidelines = {
+  heading: "General Guidelines",
+  points: [
+    "Registration as a delegate is compulsory to participate in any Spandan event and for accommodation.",
+    "Registration will be through the official Spandan website.",
+    "Registration is complete once you receive the confirmation email on your registered email ID.",
+    "Refunds will not be issued under any circumstance.",
+    "The Team Leader of a contingent should be the one who confirms the registration of participants at the Reception Desk on arrival.",
+    "Participants should carry their Delegate Cards with them at all times — they'll be required to show it on demand by any authorised personnel.",
+    "Smoking, consumption of alcohol and narcotics is strictly prohibited in the college campus.",
+    "Violation of this rule will lead to severe consequences. Decision of the Judges will be final and binding for any event.",
+    "All prize amounts are subject to change with the number of registrations. Prize money will be transferred directly to the participant's bank account within 7 working days.",
+    "In case of any disputes arising, the decision of the JIPMER Students' Association shall be binding.",
+  ],
+};
+
+export const gettingHere = {
+  heading: "All Aboard — Getting Here",
+  routes: [
+    { mode: "By Air", points: ["Puducherry Airport", "Chennai International Airport"] },
+    { mode: "By Rail", points: ["Chennai Central", "Puducherry Railway Station", "Villupuram Junction"] },
+    { mode: "By Road", points: ["Well connected by road network.", "Buses, taxis and cabs available."] },
+  ],
+};
+
 export const tiers = [
   {
     id: "tier-one",
-    name: "Tier One",
+    name: "The Red Queen",
+    tierLabel: "Tier One",
     price: 750,
     tag: "All-Access Pass",
     suit: "♥",
@@ -31,7 +134,8 @@ export const tiers = [
   },
   {
     id: "tier-two",
-    name: "Tier Two",
+    name: "The Mad Hatter",
+    tierLabel: "Tier Two",
     price: 650,
     tag: "Popular Choice",
     suit: "♦",
@@ -48,7 +152,8 @@ export const tiers = [
   },
   {
     id: "tier-three",
-    name: "Tier Three",
+    name: "The White Rabbit",
+    tierLabel: "Tier Three",
     price: 375,
     tag: "Essential Pass",
     suit: "♠",
@@ -67,40 +172,112 @@ export const tiers = [
 export const clubPasses = [
   {
     id: "cult-pass",
-    name: "Cult Pass",
+    name: "The Mystic Caterpillar",
+    passLabel: "Cult Pass",
     price: 150,
     type: "club-pass",
-    desc: "Access to all minor stage events. Individual event registration fee to be paid separately."
+    desc: "Viewer access to all minor stage events. Individual event registration fee to be paid separately to participate.",
   },
   {
     id: "sports-pass",
-    name: "Sports Pass",
+    name: "The Cheshire Cat",
+    passLabel: "Sports Pass",
     price: 250,
     type: "club-pass",
-    desc: "Access to all sports events. Individual event registration fee to be paid separately."
+    desc: "Viewer access to all sports events. Individual event registration fee to be paid separately to participate.",
   },
   {
     id: "lit-pass",
-    name: "Lit Pass",
+    name: "The Knave of Hearts",
+    passLabel: "Lit Pass",
     price: 500,
     type: "club-pass",
-    desc: "Participate in all Literary events. Individual event registration fee not required."
+    desc: "Participate in all Literary events free of charge. Individual event registration fee not required."
   },
   {
     id: "quiz-pass",
     name: "Quiz Pass",
+    passLabel: "Quiz Pass",
     price: 550,
     type: "club-pass",
-    desc: "Participate in all Quiz events. Individual event registration fee not required."
+    desc: "Participate in all Quiz events free of charge. Individual event registration fee not required."
   },
   {
     id: "premium-pass",
     name: "Premium Pass (Lit & Quiz)",
+    passLabel: "Premium Pass",
     price: 800,
     type: "club-pass",
-    desc: "Participate in all Literary & Quiz events. Individual event registration fee not required."
+    desc: "Participate in all Literary & Quiz events free of charge. Individual event registration fee not required."
   }
 ];
+
+// ----------------------------------------------------------------
+// PASS-GATED EVENT ACCESS
+// Which passes/tiers unlock a category. Owning a pass grants ACCESS
+// to register for that category — it does not waive the per-event
+// fee. Every event keeps its own listed price at checkout, always,
+// per the official brochure's "individual registration fee to be
+// paid separately" rule (now applied uniformly to every pass type,
+// including Delegate Tiers).
+// ----------------------------------------------------------------
+const ALL_TIERS = ["tier-one", "tier-two", "tier-three"];
+
+export const categoryAccess = {
+  "cult-major": { requiredPasses: [...ALL_TIERS, "cult-pass"] },
+  "cult-minor": { requiredPasses: [...ALL_TIERS, "cult-pass"] },
+  "fine-arts": { requiredPasses: [...ALL_TIERS, "cult-pass"] },
+  "literary": { requiredPasses: [...ALL_TIERS, "lit-pass", "premium-pass"] },
+  "quiz": { requiredPasses: [...ALL_TIERS, "quiz-pass", "premium-pass"] },
+  "sports": { requiredPasses: [...ALL_TIERS, "sports-pass"] },
+  "informals": { requiredPasses: [] },
+  "mediquiz": { requiredPasses: [] },
+  "gaming": { requiredPasses: [] },
+  "photography": { requiredPasses: [] },
+};
+
+// Per-event overrides where the category default doesn't apply.
+// Dernier Cri is Tier One/Two only, per Delegate Tier amenities above
+// (Tier Three / The White Rabbit excludes it).
+export const eventOverrides = {
+  "dernier-cri": { requiredPasses: ["tier-one", "tier-two"] },
+};
+
+/**
+ * Given an event and the set of pass codes a user owns, work out
+ * whether they can register for it. Price is always the event's own
+ * listed price when unlocked — no pass makes an event free, a pass
+ * only unlocks the *ability* to buy it.
+ */
+export function getEventAccess(event, ownedPassCodes = []) {
+  const rule = eventOverrides[event.id] || categoryAccess[event.category] || { requiredPasses: [] };
+
+  const isOpen = rule.requiredPasses.length === 0;
+  const owns = (code) => ownedPassCodes.includes(code);
+  const unlocked = isOpen || rule.requiredPasses.some(owns);
+
+  return {
+    unlocked,
+    price: event.price,
+    requiredLabel: unlocked
+      ? null
+      : rule.requiredPasses
+          .map((code) => {
+            const tier = tiers.find((t) => t.id === code);
+            const club = clubPasses.find((p) => p.id === code);
+            return tier ? tier.tierLabel : club ? club.passLabel : code;
+          })
+          .join(" or "),
+  };
+}
+
+// Team events: informals and team-format sports need a roster.
+// (Individual/solo sports and all cultural/literary/quiz events are
+// single-participant registrations.)
+export function isTeamEvent(event) {
+  return event.category === "informals" || event.type === "Team Sports";
+}
+
 
 export const eventCategories = [
   { id: "all", label: "All Realities" },

@@ -11,8 +11,18 @@ import {
   eventsList,
   teamContacts,
   scheduleData,
+  aboutJipmer,
+  aboutSpandanExtended,
+  registrationProcess,
+  onReachingJipmer,
+  accommodation,
+  generalGuidelines,
+  gettingHere,
+  getEventAccess,
 } from "./data/festData";
 import AdminDashboard from "./components/AdminDashboard";
+import RegistrationFlow from "./components/RegistrationFlow";
+import Profile from "./components/Profile";
 
 // Lightweight pure SVGs to avoid React 19 / Lucide incompatibility
 const SparklesIcon = () => (
@@ -249,75 +259,61 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [authConfirmPassword, setAuthConfirmPassword] = useState("");
   const [showAuthPassword, setShowAuthPassword] = useState(false);
   const [authMode, setAuthMode] = useState("login");
   const [authMessage, setAuthMessage] = useState("");
 
-  // Payment Screenshot State
-  const [paymentScreenshot, setPaymentScreenshot] = useState(null);
-  const [screenshotPreview, setScreenshotPreview] = useState(null);
+  // Passes this user already owns (from approved purchases) — drives
+  // event-gating across the Events tab and the Registration flow.
+  const [ownedPasses, setOwnedPasses] = useState([]);
 
-  // College ID Card State
-  const [idCardFile, setIdCardFile] = useState(null);
-  const [idCardPreview, setIdCardPreview] = useState(null);
-
-  // Registration & Pass Selection State
-  const [selectedPassType, setSelectedPassType] = useState("tier"); // 'tier' | 'club'
-  const [formData, setFormData] = useState({
-    fullName: "",
-    phone: "",
-    college: "",
-    yearOfStudy: "1st Year",
-    selectedPassId: "tier-two",
-    selectedEvents: [],
-  });
-
-  const [submitting, setSubmitting] = useState(false);
-  const [registeredSuccess, setRegisteredSuccess] = useState(false);
+  const fetchOwnedPasses = async (currentUser) => {
+    const u = currentUser ?? user;
+    if (!u) {
+      setOwnedPasses([]);
+      return;
+    }
+    const { data } = await supabase
+      .from("purchases")
+      .select("pass_codes")
+      .eq("user_id", u.id)
+      .eq("payment_status", "APPROVED");
+    const codes = new Set();
+    (data || []).forEach((row) => (row.pass_codes || []).forEach((c) => codes.add(c)));
+    setOwnedPasses([...codes]);
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) fetchOwnedPasses(session.user);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) fetchOwnedPasses(session.user);
+      else setOwnedPasses([]);
     });
 
     return () => subscription?.unsubscribe();
   }, []);
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("Payment screenshot size must be under 5MB.");
-        return;
-      }
-      setPaymentScreenshot(file);
-      setScreenshotPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleIdCardChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("ID card image size must be under 5MB.");
-        return;
-      }
-      setIdCardFile(file);
-      setIdCardPreview(URL.createObjectURL(file));
-    }
-  };
 
   const handleAuth = async (e) => {
     e.preventDefault();
     setAuthMessage("");
     try {
       if (authMode === "signup") {
+        if (authPassword !== authConfirmPassword) {
+          setAuthMessage("Passwords do not match. Please re-enter.");
+          return;
+        }
+        if (authPassword.length < 6) {
+          setAuthMessage("Password must be at least 6 characters.");
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email: authEmail,
           password: authPassword,
@@ -325,6 +321,7 @@ export default function App() {
         if (error) throw error;
         setAuthMessage("Account created! You can now log in.");
         setAuthMode("login");
+        setAuthConfirmPassword("");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: authEmail,
@@ -343,135 +340,16 @@ export default function App() {
     await supabase.auth.signOut();
   };
 
-  const handleEventToggle = (eventId) => {
-    setFormData((prev) => {
-      const exists = prev.selectedEvents.includes(eventId);
-      return {
-        ...prev,
-        selectedEvents: exists
-          ? prev.selectedEvents.filter((id) => id !== eventId)
-          : [...prev.selectedEvents, eventId],
-      };
-    });
-  };
+  const [eventSearchQuery, setEventSearchQuery] = useState("");
 
-  // Dynamic Price Calculation
-  const activePass =
-    selectedPassType === "tier"
-      ? tiers.find((t) => t.id === formData.selectedPassId)
-      : clubPasses.find((p) => p.id === formData.selectedPassId);
-
-  const passPrice = activePass ? activePass.price : 0;
-
-  const selectedEventObjects = eventsList.filter((ev) =>
-    formData.selectedEvents.includes(ev.id),
-  );
-
-  const eventsTotalPrice = selectedEventObjects.reduce(
-    (sum, evt) => sum + (evt.price || 0),
-    0,
-  );
-
-  const grandTotal = passPrice + eventsTotalPrice;
-
-  const handleRegistrationSubmit = async (e) => {
-    e.preventDefault();
-    if (!user) {
-      alert("Please log in or create an account first to register.");
-      setActiveTab("auth");
-      return;
+  const filteredEvents = (() => {
+    let list = selectedCategory === "all" ? eventsList : eventsList.filter((ev) => ev.category === selectedCategory);
+    if (eventSearchQuery.trim()) {
+      const q = eventSearchQuery.trim().toLowerCase();
+      list = list.filter((ev) => ev.title.toLowerCase().includes(q) || ev.desc?.toLowerCase().includes(q));
     }
-
-    // Validate 10-digit phone number
-    const cleanPhone = formData.phone.replace(/\D/g, "");
-    if (cleanPhone.length !== 10) {
-      alert("Please enter a valid 10-digit phone number.");
-      return;
-    }
-
-    if (!idCardFile) {
-      alert("Please upload a photo of your College ID card.");
-      return;
-    }
-
-    if (!paymentScreenshot) {
-      alert("Please upload your payment screenshot.");
-      return;
-    }
-
-    if (!formData.selectedPassId) {
-      alert("Please select at least one Delegate Tier or Club Pass.");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      // 1. Upload College ID Card
-      const idExt = idCardFile.name.split(".").pop();
-      const idFileName = `id_${user.id}_${Date.now()}.${idExt}`;
-      const idFilePath = `id_cards/${idFileName}`;
-
-      const { error: idUploadError } = await supabase.storage
-        .from("payment-screenshots")
-        .upload(idFilePath, idCardFile);
-
-      if (idUploadError) throw idUploadError;
-
-      const { data: idUrlData } = supabase.storage
-        .from("payment-screenshots")
-        .getPublicUrl(idFilePath);
-
-      // 2. Upload Payment Screenshot
-      const payExt = paymentScreenshot.name.split(".").pop();
-      const payFileName = `pay_${user.id}_${Date.now()}.${payExt}`;
-      const payFilePath = `receipts/${payFileName}`;
-
-      const { error: payUploadError } = await supabase.storage
-        .from("payment-screenshots")
-        .upload(payFilePath, paymentScreenshot);
-
-      if (payUploadError) throw payUploadError;
-
-      const { data: payUrlData } = supabase.storage
-        .from("payment-screenshots")
-        .getPublicUrl(payFilePath);
-
-      // 3. Save Registration Details
-      const { error } = await supabase.from("registrations").insert([
-        {
-          user_id: user.id,
-          full_name: formData.fullName,
-          email: user.email,
-          phone: cleanPhone,
-          college: formData.college,
-          year_of_study: formData.yearOfStudy,
-          pass_type: selectedPassType,
-          pass_id: formData.selectedPassId,
-          selected_events: formData.selectedEvents,
-          total_amount: grandTotal,
-          id_card_url: idUrlData.publicUrl,
-          payment_screenshot_url: payUrlData.publicUrl,
-          payment_status: "PENDING_VERIFICATION",
-        },
-      ]);
-
-      if (error) throw error;
-      setRegisteredSuccess(true);
-      setPaymentScreenshot(null);
-      setScreenshotPreview(null);
-      setIdCardFile(null);
-      setIdCardPreview(null);
-    } catch (err) {
-      alert("Registration failed: " + err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const filteredEvents =
-    selectedCategory === "all"
-      ? eventsList
-      : eventsList.filter((ev) => ev.category === selectedCategory);
+    return list;
+  })();
 
   const getWhatsAppLink = (phone) => {
     const formatted = phone.replace(/\D/g, "");
@@ -517,6 +395,7 @@ export default function App() {
               "events",
               "schedule",
               "registration",
+              ...(user ? ["profile"] : []),
               "contact",
             ].map((tab) => (
               <button
@@ -584,6 +463,7 @@ export default function App() {
               "events",
               "schedule",
               "registration",
+              ...(user ? ["profile"] : []),
               "contact",
             ].map((tab) => (
               <button
@@ -710,14 +590,14 @@ export default function App() {
             <SectionScenery />
             <div className="text-center space-y-4">
               <h2 className="font-display text-4xl md:text-5xl font-black text-lantern-200 glow-text">
-                About Spandan
+                {aboutSpandanExtended.heading}
               </h2>
               <div className="vine-divider w-40 mx-auto" />
-              <p className="text-parchment-100/75 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
-                Spandan is South India's premier intercollegiate medical,
-                cultural, and sports festival, welcoming thousands of students
-                to the historic halls of JIPMER Pondicherry.
-              </p>
+              {aboutSpandanExtended.paragraphs.map((p, idx) => (
+                <p key={idx} className="text-parchment-100/75 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
+                  {p}
+                </p>
+              ))}
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
@@ -767,6 +647,109 @@ export default function App() {
                 and captivating artistic spectacles.
               </p>
             </div>
+
+            {/* About JIPMER — from the official brochure */}
+            <div className="glow-card p-8 rounded-3xl space-y-4">
+              <h3 className="text-xl font-display font-bold text-parchment-50">
+                {aboutJipmer.heading}
+              </h3>
+              {aboutJipmer.paragraphs.map((p, idx) => (
+                <p key={idx} className="text-parchment-100/75 text-sm leading-relaxed">
+                  {p}
+                </p>
+              ))}
+            </div>
+
+            {/* On Reaching JIPMER */}
+            <div className="glow-card p-8 rounded-3xl space-y-4">
+              <h3 className="text-xl font-display font-bold text-parchment-50">
+                {onReachingJipmer.heading}
+              </h3>
+              <div>
+                <p className="text-xs uppercase tracking-wider text-lantern-300 font-bold mb-2">
+                  On arrival, all delegates must bring:
+                </p>
+                <ul className="space-y-1.5 text-sm text-parchment-100/75 list-decimal list-inside">
+                  {onReachingJipmer.bringItems.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <ul className="space-y-2 text-sm text-parchment-100/75">
+                {onReachingJipmer.points.map((pt, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-lantern-400 mt-0.5">✦</span>
+                    <span>{pt}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Accommodation */}
+            <div className="glow-card p-8 rounded-3xl space-y-4">
+              <div>
+                <h3 className="text-xl font-display font-bold text-parchment-50">
+                  {accommodation.heading}
+                </h3>
+                <p className="font-hand text-lg text-toadstool-300/90">{accommodation.subheading}</p>
+              </div>
+              <ul className="space-y-2 text-sm text-parchment-100/75">
+                {accommodation.points.map((pt, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-mist-400 mt-0.5">✦</span>
+                    <span>{pt}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="pt-3 border-t border-white/10">
+                <p className="text-xs uppercase tracking-wider text-toadstool-300 font-bold mb-2">
+                  {accommodation.termsHeading}
+                </p>
+                <ul className="space-y-1.5 text-xs text-parchment-100/65">
+                  {accommodation.terms.map((t, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-toadstool-400 mt-0.5">•</span>
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <p className="text-xs text-lantern-300">Contact — {accommodation.contact}</p>
+            </div>
+
+            {/* General Guidelines */}
+            <div className="glow-card p-8 rounded-3xl space-y-4">
+              <h3 className="text-xl font-display font-bold text-parchment-50">
+                {generalGuidelines.heading}
+              </h3>
+              <ul className="space-y-2 text-sm text-parchment-100/75">
+                {generalGuidelines.points.map((pt, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-lantern-400 mt-0.5">✦</span>
+                    <span>{pt}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Getting Here */}
+            <div className="glow-card p-8 rounded-3xl space-y-4">
+              <h3 className="text-xl font-display font-bold text-parchment-50">
+                {gettingHere.heading}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {gettingHere.routes.map((route, idx) => (
+                  <div key={idx} className="p-4 rounded-2xl bg-canopy-950/50 border border-lantern-500/15">
+                    <p className="text-sm font-bold text-lantern-300 mb-2">{route.mode}</p>
+                    <ul className="space-y-1 text-xs text-parchment-100/70">
+                      {route.points.map((pt, i2) => (
+                        <li key={i2}>{pt}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
           </section>
         )}
 
@@ -781,6 +764,21 @@ export default function App() {
               <p className="text-slate-400 text-sm">
                 Choose your domain of competition
               </p>
+            </div>
+
+            {/* Search Bar */}
+            <div className="max-w-xl mx-auto relative">
+              <input
+                type="text"
+                value={eventSearchQuery}
+                onChange={(e) => setEventSearchQuery(e.target.value)}
+                placeholder="Search events by name..."
+                className="w-full px-5 py-3 rounded-full bg-canopy-950/60 border border-lantern-500/20 text-parchment-50 text-sm placeholder:text-parchment-100/40 focus:outline-none focus:border-mist-400"
+              />
+              <svg className="w-4 h-4 text-parchment-100/40 absolute right-5 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
+              </svg>
             </div>
 
             {/* Category Filter Pills */}
@@ -802,22 +800,42 @@ export default function App() {
 
             {/* Events Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+              {filteredEvents.length === 0 && (
+                <p className="col-span-full text-center text-sm text-slate-400 py-10">
+                  No events match "{eventSearchQuery}".
+                </p>
+              )}
               {filteredEvents.map((ev) => {
                 const hasSubEvents = ev.subEvents && ev.subEvents.length > 0;
+                const access = getEventAccess(ev, ownedPasses);
 
                 return (
                   <div
                     key={ev.id}
-                    className="glow-card p-6 rounded-2xl flex flex-col justify-between space-y-4"
+                    className="glow-card p-6 rounded-2xl flex flex-col justify-between space-y-4 relative"
                   >
+                    {!access.unlocked && (
+                      <div className="absolute top-4 right-4 z-10 group/lock">
+                        <div className="w-8 h-8 rounded-full bg-canopy-950/90 border border-lantern-500/40 flex items-center justify-center cursor-help">
+                          <svg className="w-4 h-4 text-lantern-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="4" y="10" width="16" height="10" rx="2" />
+                            <path d="M8 10V7a4 4 0 018 0v3" />
+                          </svg>
+                        </div>
+                        <div className="pointer-events-none absolute right-0 top-9 w-52 p-2.5 rounded-xl bg-canopy-950 border border-lantern-500/30 text-[10px] text-parchment-100/90 opacity-0 group-hover/lock:opacity-100 transition-opacity shadow-xl z-20">
+                          Buy {access.requiredLabel} to unlock registration for this event
+                        </div>
+                      </div>
+                    )}
+
                     <div>
-                      <div className="flex justify-between items-start mb-1">
+                      <div className="flex justify-between items-start mb-1 pr-8">
                         <span className="text-[10px] uppercase font-bold tracking-widest text-lantern-400">
                           {ev.type ? `${ev.type} • ` : ""}
                           {ev.category.replace("-", " ")}
                         </span>
                         <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                          {ev.price > 0 ? `₹${ev.price}` : "Free / Pass"}
+                          {access.price > 0 ? `₹${access.price}` : "Free"}
                         </span>
                       </div>
                       <h3 className="text-lg font-bold text-parchment-50">
@@ -827,35 +845,28 @@ export default function App() {
                         {ev.desc}
                       </p>
 
-                      {/* SUB-EVENTS SELECTABLE CHIPS FOR SPORTS/NESTED EVENTS */}
                       {hasSubEvents && (
                         <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
                           <span className="text-[11px] font-semibold text-lantern-300 block">
                             Sub-Categories / Formats:
                           </span>
                           <div className="flex flex-wrap gap-1.5">
-                            {ev.subEvents.map((sub, sIdx) => {
-                              const subKey = `${ev.id}:${sub}`;
-                              const isSelected =
-                                formData.selectedEvents.includes(subKey);
-                              return (
-                                <button
-                                  key={sIdx}
-                                  type="button"
-                                  onClick={() => handleEventToggle(subKey)}
-                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition border ${
-                                    isSelected
-                                      ? "bg-lantern-400 text-canopy-950 border-lantern-400 font-bold shadow-sm"
-                                      : "bg-canopy-950/60 border-white/10 text-slate-300 hover:bg-white/10"
-                                  }`}
-                                >
-                                  {isSelected ? "✓ " : "+ "}
-                                  {sub}
-                                </button>
-                              );
-                            })}
+                            {ev.subEvents.map((sub, sIdx) => (
+                              <span
+                                key={sIdx}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-canopy-950/60 border-white/10 text-slate-300"
+                              >
+                                {sub}
+                              </span>
+                            ))}
                           </div>
                         </div>
+                      )}
+
+                      {!access.unlocked && (
+                        <p className="mt-3 text-[11px] text-lantern-300/90 font-medium">
+                          🔒 Buy {access.requiredLabel} to unlock
+                        </p>
                       )}
                     </div>
 
@@ -866,25 +877,12 @@ export default function App() {
                       >
                         Contact: {ev.contact}
                       </span>
-                      {!hasSubEvents && (
-                        <button
-                          onClick={() => {
-                            handleEventToggle(ev.id);
-                            setActiveTab("registration");
-                          }}
-                          className="text-mist-400 hover:text-mist-300 font-semibold shrink-0"
-                        >
-                          + Select &amp; Register
-                        </button>
-                      )}
-                      {hasSubEvents && (
-                        <button
-                          onClick={() => setActiveTab("registration")}
-                          className="text-lantern-300 hover:text-lantern-200 font-semibold shrink-0"
-                        >
-                          View Checkout →
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setActiveTab("registration")}
+                        className="text-mist-400 hover:text-mist-300 font-semibold shrink-0"
+                      >
+                        {access.unlocked ? "Add Event →" : "Get a Pass →"}
+                      </button>
                     </div>
                   </div>
                 );
@@ -957,438 +955,27 @@ export default function App() {
               </p>
             </div>
 
-            {/* STEP 1: CATEGORY TOGGLE (TIERS vs CLUB PASSES) */}
-            <div className="flex justify-center">
-              <div className="flex bg-canopy-950/80 p-1.5 rounded-full border border-lantern-500/20">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPassType("tier");
-                    setFormData({ ...formData, selectedPassId: "tier-two" });
-                  }}
-                  className={`px-6 py-2 rounded-full text-xs font-bold transition ${
-                    selectedPassType === "tier"
-                      ? "bg-lantern-400 text-canopy-950 shadow-md"
-                      : "text-slate-300 hover:text-white"
-                  }`}
-                >
-                  Delegate Tiers (All-Access)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPassType("club");
-                    setFormData({ ...formData, selectedPassId: "cult-pass" });
-                  }}
-                  className={`px-6 py-2 rounded-full text-xs font-bold transition ${
-                    selectedPassType === "club"
-                      ? "bg-lantern-400 text-canopy-950 shadow-md"
-                      : "text-slate-300 hover:text-white"
-                  }`}
-                >
-                  Club Passes (Domain Specific)
-                </button>
-              </div>
-            </div>
-
-            {/* DELEGATE TIERS CARDS */}
-            {selectedPassType === "tier" && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {tiers.map((tier) => (
-                  <div
-                    key={tier.id}
-                    onClick={() =>
-                      setFormData({ ...formData, selectedPassId: tier.id })
-                    }
-                    className={`cursor-pointer p-6 rounded-3xl border bg-gradient-to-b ${tier.color} backdrop-blur-md flex flex-col justify-between space-y-6 transition-all ${
-                      formData.selectedPassId === tier.id
-                        ? "ring-2 ring-lantern-300 shadow-2xl -translate-y-1"
-                        : "opacity-85 hover:opacity-100"
-                    }`}
-                  >
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="stamp-badge inline-block px-3 py-1 rounded-full text-sm bg-white/10 text-parchment-50">
-                          {tier.tag}
-                        </div>
-                        <span className="text-3xl leading-none text-parchment-50/90">
-                          {tier.suit}
-                        </span>
-                      </div>
-                      <h3 className="text-2xl font-display font-black text-parchment-50">
-                        {tier.name}
-                      </h3>
-                      <div className="text-3xl font-display font-extrabold text-parchment-50">
-                        ₹{tier.price}*
-                        <span className="text-xs font-body font-normal text-parchment-100/60">
-                          {" "}
-                          / delegate
-                        </span>
-                      </div>
-
-                      <ul className="space-y-2 text-xs text-parchment-100/85">
-                        {tier.amenities.map((item, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <CheckIcon />
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <button
-                      type="button"
-                      className={`w-full py-3 rounded-full font-bold text-xs tracking-wider transition ${
-                        formData.selectedPassId === tier.id
-                          ? "bg-lantern-400 text-canopy-950 shadow-lg"
-                          : "bg-white/10 hover:bg-white/20 text-parchment-50"
-                      }`}
-                    >
-                      {formData.selectedPassId === tier.id
-                        ? "✓ Selected Tier"
-                        : "Select Tier"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* CLUB PASSES CARDS */}
-            {selectedPassType === "club" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {clubPasses.map((pass) => (
-                    <div
-                      key={pass.id}
-                      onClick={() =>
-                        setFormData({ ...formData, selectedPassId: pass.id })
-                      }
-                      className={`cursor-pointer p-6 rounded-3xl border bg-canopy-950/80 border-lantern-500/20 backdrop-blur-md flex flex-col justify-between space-y-4 transition-all ${
-                        formData.selectedPassId === pass.id
-                          ? "ring-2 ring-lantern-300 border-lantern-400 shadow-2xl -translate-y-1 bg-canopy-900"
-                          : "hover:border-lantern-500/40 opacity-90 hover:opacity-100"
-                      }`}
-                    >
-                      <div>
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="text-xl font-display font-bold text-parchment-50">
-                            {pass.name}
-                          </h3>
-                          <span className="text-xl font-extrabold text-lantern-300">
-                            ₹{pass.price}*
-                          </span>
-                        </div>
-                        <p className="text-xs text-parchment-100/70 leading-relaxed">
-                          {pass.desc}
-                        </p>
-                      </div>
-
-                      <button
-                        type="button"
-                        className={`w-full py-2.5 rounded-full font-bold text-xs transition ${
-                          formData.selectedPassId === pass.id
-                            ? "bg-lantern-400 text-canopy-950 shadow-md"
-                            : "bg-white/10 text-parchment-50 hover:bg-white/20"
-                        }`}
-                      >
-                        {formData.selectedPassId === pass.id
-                          ? "✓ Selected Pass"
-                          : "Select Pass"}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-center text-xs text-slate-400 italic">
-                  Note: Holding a Cult / Sports / Lit pass does not grant main
-                  stage access. Prices subject to change.
-                </p>
-              </div>
-            )}
-
-            {/* Registration Form & Dynamic Checkout */}
-            <div className="max-w-3xl mx-auto glow-card p-8 rounded-3xl">
-              <h3 className="text-xl font-display font-bold mb-6 text-parchment-50 text-center">
-                Complete Participant Details
+            {/* Registration Process — from the official brochure */}
+            <div className="max-w-3xl mx-auto glow-card p-6 rounded-2xl">
+              <h3 className="text-sm font-display font-bold text-lantern-200 mb-3">
+                {registrationProcess.heading}
               </h3>
-
-              {registeredSuccess ? (
-                <div className="text-center py-8 space-y-4">
-                  <CheckCircleIcon />
-                  <h4 className="text-xl font-display font-bold text-parchment-50">
-                    Registration Submitted!
-                  </h4>
-                  <p className="text-sm text-parchment-100/70">
-                    Your details, college ID, and payment receipt have been
-                    saved to the Spandan database.
-                  </p>
-                  <button
-                    onClick={() => setRegisteredSuccess(false)}
-                    className="px-6 py-2 rounded-xl bg-white/10 text-xs font-semibold hover:bg-white/20"
-                  >
-                    Register Another Person
-                  </button>
-                </div>
-              ) : (
-                <form
-                  onSubmit={handleRegistrationSubmit}
-                  className="space-y-6 text-xs"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Full Name Field */}
-                    <div className="text-left space-y-1">
-                      <label className="text-xs font-semibold text-slate-300 block">
-                        Full Name <span className="text-toadstool-400">*</span>
-                      </label>
-                      <input
-                        required
-                        type="text"
-                        placeholder="Enter your full name"
-                        value={formData.fullName}
-                        onChange={(e) =>
-                          setFormData({ ...formData, fullName: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
-                      />
-                    </div>
-
-                    {/* Phone Field (Strict 10 digits) */}
-                    <div className="text-left space-y-1">
-                      <label className="text-xs font-semibold text-slate-300 block">
-                        Phone Number (WhatsApp){" "}
-                        <span className="text-toadstool-400">*</span>
-                      </label>
-                      <input
-                        required
-                        type="tel"
-                        maxLength={10}
-                        pattern="[0-9]{10}"
-                        placeholder="9876543210"
-                        value={formData.phone}
-                        onChange={(e) => {
-                          const onlyNums = e.target.value.replace(/\D/g, "");
-                          if (onlyNums.length <= 10) {
-                            setFormData({ ...formData, phone: onlyNums });
-                          }
-                        }}
-                        className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40 font-mono"
-                      />
-                      <span className="text-[10px] text-slate-400 block">
-                        Must be exactly 10 digits (without +91)
-                      </span>
-                    </div>
-
-                    {/* College / Institution */}
-                    <div className="text-left space-y-1">
-                      <label className="text-xs font-semibold text-slate-300 block">
-                        College / Institution{" "}
-                        <span className="text-toadstool-400">*</span>
-                      </label>
-                      <input
-                        required
-                        type="text"
-                        placeholder="Enter college name"
-                        value={formData.college}
-                        onChange={(e) =>
-                          setFormData({ ...formData, college: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
-                      />
-                    </div>
-
-                    {/* Year of Study */}
-                    <div className="text-left space-y-1">
-                      <label className="text-xs font-semibold text-slate-300 block">
-                        Year of Study
-                      </label>
-                      <select
-                        value={formData.yearOfStudy}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            yearOfStudy: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#1c3226] border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
-                      >
-                        <option value="1st Year">1st Year</option>
-                        <option value="2nd Year">2nd Year</option>
-                        <option value="3rd Year">3rd Year</option>
-                        <option value="4th Year">4th Year</option>
-                        <option value="Intern / Post-Graduate">
-                          Intern / Post-Graduate
-                        </option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* COMPULSORY COLLEGE ID CARD PHOTO UPLOAD */}
-                  <div className="text-left space-y-2 pt-2 border-t border-white/10">
-                    <label className="text-xs font-semibold text-slate-300 block">
-                      Upload College ID Card Photo{" "}
-                      <span className="text-toadstool-400">*</span>
-                    </label>
-                    <input
-                      required
-                      type="file"
-                      accept="image/*"
-                      onChange={handleIdCardChange}
-                      className="w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-lantern-500/20 file:text-lantern-200 hover:file:bg-lantern-500/30 cursor-pointer bg-canopy-950/50 p-2 rounded-xl border border-white/10"
-                    />
-
-                    {idCardPreview && (
-                      <div className="mt-2 relative w-full max-w-xs rounded-xl overflow-hidden border border-lantern-400/40 p-1 bg-canopy-950">
-                        <img
-                          src={idCardPreview}
-                          alt="ID Card Preview"
-                          className="w-full h-32 object-contain rounded-lg"
-                        />
-                        <span className="text-[10px] text-emerald-400 block text-center mt-1 font-semibold">
-                          ✓ ID Card Attached
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Event Checkbox Selection */}
-                  <div className="pt-2">
-                    <label className="block text-slate-300 mb-2 font-semibold flex justify-between">
-                      <span>Select Events to Participate In:</span>
-                      <span className="text-lantern-300">
-                        {formData.selectedEvents.length} Selected
-                      </span>
-                    </label>
-                    <div className="max-h-52 overflow-y-auto p-3 rounded-xl bg-canopy-950/50 border border-white/10 space-y-2">
-                      {eventsList.map((ev) => (
-                        <label
-                          key={ev.id}
-                          className="flex items-center justify-between p-1.5 rounded hover:bg-white/5 cursor-pointer text-slate-300 hover:text-parchment-50"
-                        >
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={formData.selectedEvents.includes(ev.id)}
-                              onChange={() => handleEventToggle(ev.id)}
-                              className="rounded border-white/20 text-lantern-600 focus:ring-0 accent-lantern-400"
-                            />
-                            <span>{ev.title}</span>
-                          </div>
-                          <span className="text-xs text-amber-300 font-mono">
-                            {ev.price > 0 ? `₹${ev.price}` : "₹0"}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Dynamic Checkout Calculation Summary */}
-                  <div className="p-4 rounded-2xl bg-canopy-950/90 border border-lantern-500/30 space-y-2">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-lantern-300 border-b border-white/10 pb-2">
-                      Checkout Summary
-                    </h4>
-                    <div className="flex justify-between text-slate-300">
-                      <span>
-                        Pass: {activePass ? activePass.name : "None selected"}
-                      </span>
-                      <span className="font-semibold text-lantern-200">
-                        ₹{passPrice}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-slate-300">
-                      <span>
-                        Events Selected ({selectedEventObjects.length}):
-                      </span>
-                      <span className="font-semibold text-lantern-200">
-                        ₹{eventsTotalPrice}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center border-t border-white/10 pt-2 text-sm font-bold text-parchment-50">
-                      <span>Total Amount Payable:</span>
-                      <span className="text-xl text-lantern-400">
-                        ₹{grandTotal}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* UPI QR Payment & Screenshot Upload Block */}
-                  <div className="p-5 rounded-2xl bg-white/5 border border-lantern-500/30 text-center space-y-4 my-6">
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-bold text-lantern-300">
-                        Scan &amp; Pay via Any UPI App
-                      </h4>
-                      <p className="text-[11px] text-slate-400">
-                        GPay / PhonePe / Paytm / BHIM
-                      </p>
-                    </div>
-
-                    {/* Display QR Code */}
-                    <div className="w-44 h-44 mx-auto p-2 bg-white rounded-2xl shadow-lg flex items-center justify-center">
-                      <img
-                        src="/upi-qr.png"
-                        alt="UPI QR Code"
-                        className="w-full h-full object-contain rounded-xl"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src =
-                            "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=spandan2026@upi";
-                        }}
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <p className="text-xs font-mono text-mist-300">
-                        UPI ID: spandan2026@upi
-                      </p>
-                      <p className="text-xs text-slate-300">
-                        Total to Pay:{" "}
-                        <span className="font-bold text-lantern-300 text-sm">
-                          ₹{grandTotal}
-                        </span>
-                      </p>
-                    </div>
-
-                    {/* Payment Screenshot Upload */}
-                    <div className="text-left space-y-2 pt-2">
-                      <label className="text-[11px] text-slate-300 font-semibold block">
-                        Upload Payment Screenshot / Receipt{" "}
-                        <span className="text-toadstool-400">*</span>
-                      </label>
-
-                      <input
-                        required
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-lantern-500/20 file:text-lantern-200 hover:file:bg-lantern-500/30 cursor-pointer bg-canopy-950/50 p-2 rounded-xl border border-white/10"
-                      />
-
-                      {/* Image Preview Box */}
-                      {screenshotPreview && (
-                        <div className="mt-3 relative w-full max-w-xs mx-auto rounded-xl overflow-hidden border border-lantern-400/40 p-1 bg-canopy-950">
-                          <img
-                            src={screenshotPreview}
-                            alt="Payment Receipt Preview"
-                            className="w-full h-36 object-contain rounded-lg"
-                          />
-                          <span className="text-[10px] text-emerald-400 block text-center mt-1 font-semibold">
-                            ✓ Image Attached Ready for Upload
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={submitting || !formData.selectedPassId}
-                    className="w-full py-3.5 rounded-full bg-lantern-400 font-bold text-sm text-canopy-950 shadow-[0_5px_0_0_rgba(166,92,27,0.9)] hover:brightness-105 active:translate-y-1 active:shadow-none transition-all mt-4 disabled:opacity-50"
-                  >
-                    {submitting
-                      ? "Saving to Database..."
-                      : `Confirm & Pay ₹${grandTotal}`}
-                  </button>
-                </form>
-              )}
+              <ul className="space-y-2 text-xs text-parchment-100/70">
+                {registrationProcess.points.map((pt, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-lantern-400 mt-0.5">✦</span>
+                    <span>{pt}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
+
+            <RegistrationFlow
+              user={user}
+              setActiveTab={setActiveTab}
+              ownedPasses={ownedPasses}
+              refreshOwnedPasses={fetchOwnedPasses}
+            />
           </section>
         )}
 
@@ -1461,6 +1048,13 @@ export default function App() {
         )}
 
         {/* TAB: ADMIN DASHBOARD */}
+        {activeTab === "profile" && (
+          <section className="relative isolate max-w-6xl mx-auto px-4 py-16">
+            <SectionScenery suits={false} />
+            <Profile user={user} setActiveTab={setActiveTab} />
+          </section>
+        )}
+
         {activeTab === "admin" && <AdminDashboard />}
 
         {/* TAB 6: AUTH MODAL / SCREEN */}
@@ -1559,6 +1153,27 @@ export default function App() {
                   </div>
                 </div>
 
+                {authMode === "signup" && (
+                  <div>
+                    <label className="block text-slate-300 mb-1">Confirm Password</label>
+                    <input
+                      required
+                      type={showAuthPassword ? "text" : "password"}
+                      value={authConfirmPassword}
+                      onChange={(e) => setAuthConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className={`w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border text-parchment-50 focus:outline-none focus:ring-1 ${
+                        authConfirmPassword && authConfirmPassword !== authPassword
+                          ? "border-red-500/50 focus:border-red-400 focus:ring-red-400/40"
+                          : "border-lantern-500/15 focus:border-mist-400 focus:ring-mist-400/40"
+                      }`}
+                    />
+                    {authConfirmPassword && authConfirmPassword !== authPassword && (
+                      <p className="text-[11px] text-red-400 mt-1">Passwords do not match.</p>
+                    )}
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   className="w-full py-3 rounded-full bg-mist-500 font-bold text-parchment-50 shadow-[0_4px_0_0_rgba(23,69,62,0.9)] hover:brightness-105 active:translate-y-1 active:shadow-none transition-all"
@@ -1572,7 +1187,10 @@ export default function App() {
                   <>
                     Don't have an account?{" "}
                     <button
-                      onClick={() => setAuthMode("signup")}
+                      onClick={() => {
+                        setAuthMode("signup");
+                        setAuthConfirmPassword("");
+                      }}
                       className="text-mist-400 font-semibold underline"
                     >
                       Sign up here
@@ -1582,7 +1200,10 @@ export default function App() {
                   <>
                     Already have an account?{" "}
                     <button
-                      onClick={() => setAuthMode("login")}
+                      onClick={() => {
+                        setAuthMode("login");
+                        setAuthConfirmPassword("");
+                      }}
                       className="text-mist-400 font-semibold underline"
                     >
                       Login here
