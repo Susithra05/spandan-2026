@@ -7,6 +7,7 @@ import {
   clubPasses,
   eventCategories,
   eventsList,
+  specialSections,
   getEventAccess,
   isTeamEvent,
 } from "../data/festData";
@@ -459,6 +460,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
     if (cartEvents.some((e) => e.key === key)) return;
     const access = getEventAccess(event, ownedPasses);
     const team = isTeamEvent(event);
+    const minSize = event.minTeamSize || (team ? 2 : 0);
     const entry = {
       key,
       eventId: event.id,
@@ -466,7 +468,10 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
       subEvent,
       price: access.price,
       isTeam: team,
-      members: [],
+      minTeamSize: minSize,
+      // Pre-render the mandatory minimum number of member rows — these
+      // can't be removed below the minimum, only added to beyond it.
+      members: team ? Array.from({ length: minSize }, () => ({ name: "", whatsapp: "", delegateId: "" })) : [],
     };
     setCartEvents((prev) => [...prev, entry]);
     if (team) setExpandedTeamKey(key);
@@ -481,7 +486,14 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
     setCartEvents((prev) => prev.map((e) => (e.key === key ? { ...e, members: [...e.members, { name: "", whatsapp: "", delegateId: "" }] } : e)));
   };
   const removeMemberRow = (key, idx) => {
-    setCartEvents((prev) => prev.map((e) => (e.key === key ? { ...e, members: e.members.filter((_, i) => i !== idx) } : e)));
+    setCartEvents((prev) =>
+      prev.map((e) => {
+        if (e.key !== key) return e;
+        // Mandatory minimum rows can't be removed, only optional extras beyond it
+        if (idx < e.minTeamSize) return e;
+        return { ...e, members: e.members.filter((_, i) => i !== idx) };
+      })
+    );
   };
   const updateTeamMember = (key, idx, field, value) => {
     setCartEvents((prev) =>
@@ -494,34 +506,45 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
     );
   };
 
-  const verifyId = async (idValue, onResult) => {
-    if (!idValue?.trim()) return onResult(null, null);
+  // Checks existence, and — when an event is given — whether that
+  // person's pass actually grants access to THIS specific event.
+  const validateId = async (idValue, event) => {
+    if (!idValue?.trim()) return { status: null };
     const { data, error } = await supabase.rpc("verify_delegate_id", { p_delegate_id: idValue.trim().toUpperCase() });
-    if (error || !data || data.length === 0) onResult(false, null);
-    else onResult(true, data[0].full_name);
+    if (error || !data || data.length === 0) return { status: "not_found" };
+    const record = data[0];
+    if (event) {
+      const access = getEventAccess(event, record.pass_codes || []);
+      if (!access.unlocked) return { status: "invalid_pass", name: record.full_name };
+    }
+    return { status: "valid", name: record.full_name };
   };
 
-  const verifyMemberId = (key, idx) => {
+  const eventById = (eventId) => eventsList.find((e) => e.id === eventId);
+
+  const verifyMemberId = async (key, idx) => {
     const entry = cartEvents.find((e) => e.key === key);
     const member = entry?.members[idx];
-    verifyId(member?.delegateId, (ok, name) => {
-      updateTeamMember(key, idx, "verified", ok);
-      updateTeamMember(key, idx, "verifiedName", name);
-    });
+    const event = eventById(entry?.eventId);
+    const result = await validateId(member?.delegateId, event);
+    updateTeamMember(key, idx, "validation", result.status);
+    updateTeamMember(key, idx, "verified", result.status === "valid");
+    updateTeamMember(key, idx, "verifiedName", result.name || null);
   };
 
-  const verifySelfId = () => {
-    verifyId(delegateId, (ok, name) => {
-      setDelegateVerified(ok);
-      if (ok && name) setParticipantName((prev) => prev || name);
-    });
+  const [selfValidation, setSelfValidation] = useState(null);
+  const verifySelfId = async () => {
+    const result = await validateId(delegateId, null);
+    setSelfValidation(result.status);
+    setDelegateVerified(result.status === "valid");
+    if (result.status === "valid" && result.name) setParticipantName((prev) => prev || result.name);
   };
 
   const handleSubmit = async () => {
     setErrorMsg("");
     if (cartEvents.length === 0) return setErrorMsg("Add at least one event to your cart.");
     if (!delegateId.trim()) return setErrorMsg("Please enter your Delegate ID.");
-    if (delegateVerified !== true) return setErrorMsg('Please verify your Delegate ID (click "Verify") before checking out.');
+    if (delegateVerified !== true) return setErrorMsg('Please validate your Delegate ID (click "Validate") before checking out.');
     if (!participantName.trim()) return setErrorMsg("Please enter your name.");
     const cleanPhone = onlyDigits(participantWhatsapp);
     if (cleanPhone.length !== 10) return setErrorMsg("Please enter a valid 10-digit WhatsApp number.");
@@ -529,10 +552,12 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
 
     for (const e of cartEvents) {
       if (!e.isTeam) continue;
-      if (e.members.length === 0) return setErrorMsg(`Add at least one team member for ${e.title}.`);
+      if (e.members.length < e.minTeamSize) {
+        return setErrorMsg(`${e.title} requires at least ${e.minTeamSize} team members.`);
+      }
       for (const m of e.members) {
         if (!m.name || !m.whatsapp || !m.delegateId) return setErrorMsg(`Please complete every team member's details for ${e.title}.`);
-        if (!m.verified) return setErrorMsg(`Could not verify Delegate ID "${m.delegateId}" for ${e.title}. Double-check it and try again.`);
+        if (!m.verified) return setErrorMsg(`Please validate every team member's Delegate ID for ${e.title} before checking out.`);
       }
     }
 
@@ -687,6 +712,19 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                     </div>
                     <h3 className="text-base font-bold text-parchment-50">{ev.title}</h3>
                     <p className="text-xs text-slate-300 mt-1 leading-relaxed">{ev.desc}</p>
+                    {ev.externalFormUrl && (
+                      <div className="mt-2 p-2 rounded-lg bg-toadstool-500/10 border border-toadstool-500/30">
+                        <p className="text-[10px] text-toadstool-300 font-semibold">{ev.externalFormNote}</p>
+                        <a
+                          href={ev.externalFormUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] text-mist-300 hover:text-mist-200 underline font-semibold"
+                        >
+                          Open External Registration Form →
+                        </a>
+                      </div>
+                    )}
                   </div>
 
                   {hasSub ? (
@@ -713,16 +751,50 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                     <button
                       disabled={!access.unlocked}
                       onClick={() => (cartEvents.some((e) => e.key === ev.id) ? removeEventFromCart(ev.id) : addEventToCart(ev))}
-                      className={`w-full py-2 rounded-xl text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed ${
-                        cartEvents.some((e) => e.key === ev.id) ? "bg-lantern-400 text-canopy-950" : "bg-white/10 hover:bg-white/20 text-parchment-50"
+                      className={`w-full py-2 rounded-xl text-xs font-bold transition disabled:cursor-not-allowed flex items-center justify-center gap-1.5 ${
+                        !access.unlocked
+                          ? "bg-white/5 text-parchment-100/50"
+                          : cartEvents.some((e) => e.key === ev.id)
+                          ? "bg-lantern-400 text-canopy-950"
+                          : "bg-white/10 hover:bg-white/20 text-parchment-50"
                       }`}
                     >
-                      {cartEvents.some((e) => e.key === ev.id) ? "✓ Added" : "+ Add Event"}
+                      {!access.unlocked ? (
+                        <>
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="4" y="10" width="16" height="10" rx="2" />
+                            <path d="M8 10V7a4 4 0 018 0v3" />
+                          </svg>
+                          Buy Valid Pass to Unlock
+                        </>
+                      ) : cartEvents.some((e) => e.key === ev.id) ? (
+                        "✓ Added"
+                      ) : (
+                        "+ Add Event"
+                      )}
                     </button>
                   )}
                 </div>
               );
             })}
+          </div>
+
+          {/* Accommodation & Food/Catering — not gated, link out to external forms */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-4">
+            {specialSections.map((sec) => (
+              <div key={sec.id} className="glow-card p-6 rounded-2xl space-y-3 border-toadstool-500/30">
+                <h3 className="text-lg font-display font-bold text-parchment-50">{sec.title}</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">{sec.desc}</p>
+                <a
+                  href={sec.formUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block px-5 py-2 rounded-full bg-toadstool-500 text-canopy-950 text-xs font-bold hover:bg-toadstool-400 transition"
+                >
+                  Register via Google Form →
+                </a>
+              </div>
+            ))}
           </div>
 
           {cartEvents.length > 0 && (
@@ -745,41 +817,67 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
 
                   {e.isTeam && (
                     <div className="mt-3 pl-2 border-l-2 border-lantern-500/20 space-y-2">
-                      <p className="text-[10px] text-parchment-100/60 uppercase tracking-wider">Team Roster ({e.members.length})</p>
-                      {e.members.map((m, idx) => (
-                        <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
-                          <input
-                            placeholder={`Member ${idx + 1} Name`}
-                            value={m.name || ""}
-                            onChange={(ev3) => updateTeamMember(e.key, idx, "name", ev3.target.value)}
-                            className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
-                          />
-                          <input
-                            placeholder="WhatsApp Number"
-                            value={m.whatsapp || ""}
-                            maxLength={10}
-                            inputMode="numeric"
-                            onChange={(ev3) => updateTeamMember(e.key, idx, "whatsapp", onlyDigits(ev3.target.value))}
-                            className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
-                          />
-                          <div className="relative">
-                            <input
-                              placeholder="Delegate ID (e.g. DT10019)"
-                              value={m.delegateId || ""}
-                              onChange={(ev3) => updateTeamMember(e.key, idx, "delegateId", ev3.target.value)}
-                              onBlur={() => verifyMemberId(e.key, idx)}
-                              className={`w-full px-3 py-2 rounded-lg bg-canopy-950/60 border text-parchment-50 text-xs ${
-                                m.verified === true ? "border-emerald-500/50" : m.verified === false ? "border-red-500/50" : "border-white/10"
-                              }`}
-                            />
-                            {m.verified === true && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-400 text-[10px]">✓</span>}
-                            {m.verified === false && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-400 text-[10px]">✗</span>}
+                      <p className="text-[10px] text-parchment-100/60 uppercase tracking-wider">
+                        Team Roster ({e.members.length}) — minimum {e.minTeamSize} required
+                      </p>
+                      {e.members.map((m, idx) => {
+                        const mandatory = idx < e.minTeamSize;
+                        return (
+                          <div key={idx} className="space-y-1">
+                            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1.4fr_auto_auto] gap-2 items-center">
+                              <input
+                                placeholder={`Member ${idx + 1} Name${mandatory ? " *" : ""}`}
+                                value={m.name || ""}
+                                onChange={(ev3) => updateTeamMember(e.key, idx, "name", ev3.target.value)}
+                                className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+                              />
+                              <input
+                                placeholder="WhatsApp Number"
+                                value={m.whatsapp || ""}
+                                maxLength={10}
+                                inputMode="numeric"
+                                onChange={(ev3) => updateTeamMember(e.key, idx, "whatsapp", onlyDigits(ev3.target.value))}
+                                className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+                              />
+                              <div className="relative">
+                                <input
+                                  placeholder="Delegate ID (e.g. DT10019)"
+                                  value={m.delegateId || ""}
+                                  onChange={(ev3) => {
+                                    updateTeamMember(e.key, idx, "delegateId", ev3.target.value);
+                                    updateTeamMember(e.key, idx, "verified", null);
+                                    updateTeamMember(e.key, idx, "validation", null);
+                                  }}
+                                  className={`w-full px-3 py-2 rounded-lg bg-canopy-950/60 border text-parchment-50 text-xs ${
+                                    m.verified === true ? "border-emerald-500/50" : m.validation ? "border-red-500/50" : "border-white/10"
+                                  }`}
+                                />
+                                {m.verified === true && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-400 text-[10px]">✓</span>}
+                              </div>
+                              <button
+                                onClick={() => verifyMemberId(e.key, idx)}
+                                className="px-3 py-2 rounded-lg bg-mist-500 text-canopy-950 text-[11px] font-bold shrink-0"
+                              >
+                                Validate
+                              </button>
+                              <button
+                                onClick={() => removeMemberRow(e.key, idx)}
+                                disabled={mandatory}
+                                title={mandatory ? `First ${e.minTeamSize} members are mandatory for this event` : "Remove"}
+                                className="text-red-400 text-xs hover:underline justify-self-start sm:justify-self-center disabled:text-slate-600 disabled:no-underline disabled:cursor-not-allowed"
+                              >
+                                {mandatory ? "Required" : "Remove"}
+                              </button>
+                            </div>
+                            {m.validation === "not_found" && (
+                              <p className="text-[10px] text-red-400 pl-1">No such ID present.</p>
+                            )}
+                            {m.validation === "invalid_pass" && (
+                              <p className="text-[10px] text-red-400 pl-1">Invalid Pass for this Event.</p>
+                            )}
                           </div>
-                          <button onClick={() => removeMemberRow(e.key, idx)} className="text-red-400 text-xs hover:underline justify-self-start sm:justify-self-center">
-                            Remove
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                       <button onClick={() => addMemberRow(e.key)} className="text-lantern-300 text-xs font-semibold hover:underline">
                         + Add Member
                       </button>
@@ -820,18 +918,19 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                 onChange={(e) => {
                   setDelegateId(e.target.value);
                   setDelegateVerified(null);
+                  setSelfValidation(null);
                 }}
                 placeholder="e.g. DT10019"
                 className={`flex-1 px-4 py-3 rounded-xl bg-canopy-950/50 border text-parchment-50 text-sm focus:outline-none ${
-                  delegateVerified === true ? "border-emerald-500/50" : delegateVerified === false ? "border-red-500/50" : "border-lantern-500/15"
+                  delegateVerified === true ? "border-emerald-500/50" : selfValidation ? "border-red-500/50" : "border-lantern-500/15"
                 }`}
               />
               <button onClick={verifySelfId} className="px-4 py-2 rounded-xl bg-mist-500 text-canopy-950 text-xs font-bold shrink-0">
-                Verify
+                Validate
               </button>
             </div>
-            {delegateVerified === true && <p className="text-[11px] text-emerald-400 mt-1">✓ Verified</p>}
-            {delegateVerified === false && <p className="text-[11px] text-red-400 mt-1">Not found — check the ID and try again.</p>}
+            {delegateVerified === true && <p className="text-[11px] text-emerald-400 mt-1">✓ Valid Delegate ID</p>}
+            {selfValidation === "not_found" && <p className="text-[11px] text-red-400 mt-1">No such ID present.</p>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

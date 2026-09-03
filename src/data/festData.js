@@ -1,4 +1,34 @@
-// src/data/festData.js
+// ----------------------------------------------------------------
+// EXTERNAL GOOGLE FORM LINKS
+// Replace the "#" placeholders below with the real form URLs once
+// they're published — nothing else in the app needs to change,
+// every place that links to these reads from this one object.
+// ----------------------------------------------------------------
+export const EXTERNAL_FORM_LINKS = {
+  accommodation: "#", // TODO: replace with the Accommodation Google Form URL
+  foodCatering: "#", // TODO: replace with the Food & Catering Google Form URL
+  mediquizJunior: "https://forms.gle/ttLJVZU4rcCxb3288",
+  mediquizSenior: "https://forms.gle/HPKEfizx3ovPLzU27",
+};
+
+// Shown as extra cards alongside the event domains — these aren't
+// competitive events, so they're never pass-gated; each just links
+// out to its own Google Form.
+export const specialSections = [
+  {
+    id: "accommodation",
+    title: "Accommodation",
+    desc: "Book your stay at The Dreamer's Vale for the duration of the fest. AC and Non-AC rooms available.",
+    formUrl: EXTERNAL_FORM_LINKS.accommodation,
+  },
+  {
+    id: "food-catering",
+    title: "Food & Catering",
+    desc: "Register for meal plans and catering options available to delegates throughout Spandan 2026.",
+    formUrl: EXTERNAL_FORM_LINKS.foodCatering,
+  },
+];
+
 export const festDetails = {
   name: "SPANDAN 2026",
   theme: "The Enchanted Reverie",
@@ -233,7 +263,6 @@ export const categoryAccess = {
   "informals": { requiredPasses: [] },
   "mediquiz": { requiredPasses: [] },
   "gaming": { requiredPasses: [] },
-  "photography": { requiredPasses: [] },
 };
 
 // Per-event overrides where the category default doesn't apply.
@@ -281,16 +310,15 @@ export function isTeamEvent(event) {
 
 export const eventCategories = [
   { id: "all", label: "All Realities" },
-  { id: "cult-major", label: "Cultural Major" },
-  { id: "cult-minor", label: "Cultural Minor" },
-  { id: "fine-arts", label: "Les Beaux Arts" },
-  { id: "literary", label: "Les Littéraires" },
-  { id: "quiz", label: "Quizzes" },
-  { id: "sports", label: "Les Jeux" },
-  { id: "informals", label: "House Informals" },
-  { id: "mediquiz", label: "La Lutte" },
-  { id: "gaming", label: "Game Over" },
-  { id: "photography", label: "Lumière sur l’Instant" }
+  { id: "cult-major", label: "Cultural Major (Dance, Music & Fashion)" },
+  { id: "cult-minor", label: "Cultural Minor (Solo & Duet Performances)" },
+  { id: "fine-arts", label: "Les Beaux Arts (Fine Arts)" },
+  { id: "literary", label: "Les Littéraires (Literature & Debating)" },
+  { id: "quiz", label: "Quizzes (General Knowledge)" },
+  { id: "sports", label: "Les Jeux (Sports)" },
+  { id: "informals", label: "House Informals (Fun Challenges)" },
+  { id: "mediquiz", label: "La Lutte (Academic Quiz)" },
+  { id: "gaming", label: "Game Over (Gaming)" }
 ];
 
 export const eventsList = [
@@ -329,12 +357,12 @@ export const eventsList = [
   { id: "adzap", title: "Adzap", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Creative advertising and presentation showdown." },
 
   // House Informals
-  { id: "arcane-heist", title: "Arcane Heist", category: "informals", contact: "Krishnendu: 9048016206", price: 300, desc: "Immersive campus heist challenge (₹300 per team)." },
-  { id: "beg-borrow-steal", title: "Beg Borrow Steal", category: "informals", contact: "Krishnendu: 9048016206", price: 160, desc: "Classic high-energy scavenger hunt (₹160 per team)." },
+  { id: "arcane-heist", title: "Arcane Heist", category: "informals", contact: "Krishnendu: 9048016206", price: 300, minTeamSize: 4, desc: "Immersive campus heist challenge (₹300 per team)." },
+  { id: "beg-borrow-steal", title: "Beg Borrow Steal", category: "informals", contact: "Krishnendu: 9048016206", price: 160, minTeamSize: 4, desc: "Classic high-energy scavenger hunt (₹160 per team)." },
 
   // La Lutte (MediQuiz)
-  { id: "la-lutte-junior", title: "La Lutte (Junior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 0, desc: "Intercollegiate Medical Quiz for juniors." },
-  { id: "la-lutte-senior", title: "La Lutte (Senior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 0, desc: "Intercollegiate Medical Quiz for seniors." },
+  { id: "la-lutte-junior", title: "La Lutte (Junior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 0, desc: "Intercollegiate Medical Quiz for juniors.", externalFormUrl: EXTERNAL_FORM_LINKS.mediquizJunior, externalFormNote: "Note: Users must complete their registration through this Google Form link as well." },
+  { id: "la-lutte-senior", title: "La Lutte (Senior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 0, desc: "Intercollegiate Medical Quiz for seniors.", externalFormUrl: EXTERNAL_FORM_LINKS.mediquizSenior, externalFormNote: "Note: Users must complete their registration through this Google Form link as well." },
 
   // Literary (Les Littéraires)
   { id: "formal-debate", title: "Formal Debate", category: "literary", contact: "Akash: 9701344959", price: 250, desc: "Rigorous formal argumentation showdown." },
@@ -358,6 +386,7 @@ export const eventsList = [
     id: "basketball",
     category: "sports",
     type: "Team Sports",
+    minTeamSize: 5,
     title: "Basketball",
     price: 0,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
@@ -368,6 +397,7 @@ export const eventsList = [
     id: "cricket",
     category: "sports",
     type: "Team Sports",
+    minTeamSize: 11,
     title: "Cricket",
     price: 0,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
@@ -378,6 +408,7 @@ export const eventsList = [
     id: "football",
     category: "sports",
     type: "Team Sports",
+    minTeamSize: 11,
     title: "Football",
     price: 0,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
@@ -388,6 +419,7 @@ export const eventsList = [
     id: "futsal",
     category: "sports",
     type: "Team Sports",
+    minTeamSize: 5,
     title: "Futsal",
     price: 0,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
@@ -398,6 +430,7 @@ export const eventsList = [
     id: "hockey",
     category: "sports",
     type: "Team Sports",
+    minTeamSize: 11,
     title: "Hockey",
     price: 0,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
@@ -408,6 +441,7 @@ export const eventsList = [
     id: "throwball",
     category: "sports",
     type: "Team Sports",
+    minTeamSize: 6,
     title: "Throwball",
     price: 0,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
@@ -418,6 +452,7 @@ export const eventsList = [
     id: "volleyball",
     category: "sports",
     type: "Team Sports",
+    minTeamSize: 6,
     title: "Volleyball",
     price: 0,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
@@ -502,12 +537,8 @@ export const eventsList = [
   },
 
   // Game Over
-  { id: "gaming-online", title: "BGMI & CODM Tournaments (Online)", category: "gaming", contact: "Prudhvi: 8056765218", price: 0, desc: "Online mobile esports competition." },
   { id: "gaming-offline", title: "FIFA, WWE 2K25 & Mortal Kombat (Offline)", category: "gaming", contact: "Prudhvi: 8056765218", price: 0, desc: "Console gaming battles." },
   { id: "psvr2", title: "Virtual Reality Experience (PSVR2)", category: "gaming", contact: "Prudhvi: 8056765218", price: 0, desc: "Immersive VR setup with Gran Turismo 7 gaming wheel." },
-
-  // Photography
-  { id: "photography", title: "Lumière sur l’Instant (Online Photography)", category: "photography", contact: "Tharaneeswar: 7010370264 / Midhun: 9840710678", price: 0, desc: "Through the lens photo contest." }
 ];
 
 export const teamContacts = [

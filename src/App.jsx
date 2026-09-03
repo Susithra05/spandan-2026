@@ -19,6 +19,7 @@ import {
   generalGuidelines,
   gettingHere,
   getEventAccess,
+  specialSections,
 } from "./data/festData";
 import AdminDashboard from "./components/AdminDashboard";
 import RegistrationFlow from "./components/RegistrationFlow";
@@ -863,10 +864,18 @@ export default function App() {
                         </div>
                       )}
 
-                      {!access.unlocked && (
-                        <p className="mt-3 text-[11px] text-lantern-300/90 font-medium">
-                          🔒 Buy {access.requiredLabel} to unlock
-                        </p>
+                      {ev.externalFormUrl && (
+                        <div className="mt-3 p-2.5 rounded-lg bg-toadstool-500/10 border border-toadstool-500/30">
+                          <p className="text-[10px] text-toadstool-300 font-semibold">{ev.externalFormNote}</p>
+                          <a
+                            href={ev.externalFormUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[11px] text-mist-300 hover:text-mist-200 underline font-semibold"
+                          >
+                            Open External Registration Form →
+                          </a>
+                        </div>
                       )}
                     </div>
 
@@ -879,14 +888,44 @@ export default function App() {
                       </span>
                       <button
                         onClick={() => setActiveTab("registration")}
-                        className="text-mist-400 hover:text-mist-300 font-semibold shrink-0"
+                        className={`font-semibold shrink-0 flex items-center gap-1.5 ${
+                          access.unlocked ? "text-mist-400 hover:text-mist-300" : "text-parchment-100/50"
+                        }`}
                       >
-                        {access.unlocked ? "Add Event →" : "Get a Pass →"}
+                        {access.unlocked ? (
+                          "Add Event →"
+                        ) : (
+                          <>
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="4" y="10" width="16" height="10" rx="2" />
+                              <path d="M8 10V7a4 4 0 018 0v3" />
+                            </svg>
+                            Buy Valid Pass to Unlock
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
                 );
               })}
+            </div>
+
+            {/* Accommodation & Food/Catering */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+              {specialSections.map((sec) => (
+                <div key={sec.id} className="glow-card p-6 rounded-2xl space-y-3 border-toadstool-500/30">
+                  <h3 className="text-lg font-display font-bold text-parchment-50">{sec.title}</h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">{sec.desc}</p>
+                  <a
+                    href={sec.formUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block px-5 py-2 rounded-full bg-toadstool-500 text-canopy-950 text-xs font-bold hover:bg-toadstool-400 transition"
+                  >
+                    Register via Google Form →
+                  </a>
+                </div>
+              ))}
             </div>
           </section>
         )}
