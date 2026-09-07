@@ -45,6 +45,7 @@ export default function AdminDashboard() {
   const [eventSearch, setEventSearch] = useState("");
   const [eventStatusFilter, setEventStatusFilter] = useState("ALL");
   const [expandedEventRegId, setExpandedEventRegId] = useState(null);
+  const [activeTable, setActiveTable] = useState("passes"); // "passes" | "events"
 
   const adminKey = () => sessionStorage.getItem("spandan_admin_key") || passcode.trim();
 
@@ -209,10 +210,33 @@ export default function AdminDashboard() {
   }
 
   return (
-    <section className="max-w-7xl mx-auto px-4 py-16 space-y-16">
+    <section className="max-w-7xl mx-auto px-4 py-16 space-y-10">
       <h2 className="text-2xl font-black text-parchment-50 text-center">Committee Dashboard</h2>
 
+      {/* Table toggle */}
+      <div className="flex justify-center">
+        <div className="inline-flex bg-white/5 border border-white/10 rounded-2xl p-1.5 gap-1">
+          <button
+            onClick={() => setActiveTable("passes")}
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition ${
+              activeTable === "passes" ? "bg-lantern-400 text-canopy-950" : "text-slate-300 hover:bg-white/5"
+            }`}
+          >
+            Table 1: User Passes Master ({passRows.length})
+          </button>
+          <button
+            onClick={() => setActiveTable("events")}
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition ${
+              activeTable === "events" ? "bg-toadstool-400 text-canopy-950" : "text-slate-300 hover:bg-white/5"
+            }`}
+          >
+            Table 2: Event Registrations Master ({eventRegs.length})
+          </button>
+        </div>
+      </div>
+
       {/* ============ TABLE 1: User Passes & Membership Master ============ */}
+      {activeTable === "passes" && (
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h3 className="text-xl font-display font-bold text-lantern-200">
@@ -300,8 +324,10 @@ export default function AdminDashboard() {
           </table>
         </div>
       </div>
+      )}
 
       {/* ============ TABLE 2: Event Registrations Master ============ */}
+      {activeTable === "events" && (
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h3 className="text-xl font-display font-bold text-toadstool-200">
@@ -418,6 +444,7 @@ export default function AdminDashboard() {
           </table>
         </div>
       </div>
+      )}
     </section>
   );
 }

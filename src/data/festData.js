@@ -1,31 +1,42 @@
 // ----------------------------------------------------------------
 // EXTERNAL GOOGLE FORM LINKS
-// Replace the "#" placeholders below with the real form URLs once
-// they're published — nothing else in the app needs to change,
-// every place that links to these reads from this one object.
 // ----------------------------------------------------------------
 export const EXTERNAL_FORM_LINKS = {
-  accommodation: "#", // TODO: replace with the Accommodation Google Form URL
-  foodCatering: "#", // TODO: replace with the Food & Catering Google Form URL
+  accommodation: "https://docs.google.com/forms/d/e/1FAIpQLSeRMJZGIREfwvrhrLKy8WSnsLmMS2C2yutua2BAwVcq_sle8g/viewform?usp=publish-editor",
+  foodIndividual: "https://docs.google.com/forms/d/e/1FAIpQLSf-LzC7k8UbDv8FyLknOVF6cf8tRYF4eXJo7K0yWrHfDawz_Q/viewform?usp=publish-editor",
+  foodGroup: "https://docs.google.com/forms/d/e/1FAIpQLSf0hKLifko0xG5nDLz8Fe9INczY4kyW03vEyqmrQJRRypMi6Q/viewform?usp=publish-editor",
+  foodGrandDinner: "https://docs.google.com/forms/d/e/1FAIpQLSfMWcQPTp2dxDL8w-SwWLrfl1fhiw-WUecotve5btSkk99pUQ/viewform?usp=publish-editor",
   mediquizJunior: "https://forms.gle/ttLJVZU4rcCxb3288",
   mediquizSenior: "https://forms.gle/HPKEfizx3ovPLzU27",
+  soloSinging: "https://docs.google.com/forms/d/e/1FAIpQLSel7EED6WW0sg5gkecM-GQzAluSXcxqRR5FWnwMTQqvcWILLQ/viewform?usp=publish-editor",
 };
 
-// Shown as extra cards alongside the event domains — these aren't
-// competitive events, so they're never pass-gated; each just links
-// out to its own Google Form.
+// TODO: replace "#" with the new official brochure's URL once it's ready
+// (e.g. a Google Drive share link, or "/spandan-2026-brochure.pdf" if you
+// add the file itself to the public/ folder). Nothing else needs to
+// change — the "View Brochure" button on the Home page reads from here.
+export const BROCHURE_URL = "#";
+
+// Rendered as extra tabs in the main domain selection bar, alongside
+// the competitive-event categories. Never pass-gated — each links out
+// to its own Google Form (a category can have more than one, e.g.
+// Food & Catering has separate Individual / Group / Grand Dinner forms).
 export const specialSections = [
   {
     id: "accommodation",
-    title: "Accommodation",
-    desc: "Book your stay at The Dreamer's Vale for the duration of the fest. AC and Non-AC rooms available.",
-    formUrl: EXTERNAL_FORM_LINKS.accommodation,
+    label: "Accommodation",
+    desc: "Book your stay at The Dreamer's Vale for the duration of the fest. Both AC and Non-AC rooms are available; a refundable ₹500/head caution deposit is collected in cash on arrival. Basic delegate registration is required first.",
+    links: [{ label: "Accommodation Registration Form", url: EXTERNAL_FORM_LINKS.accommodation }],
   },
   {
     id: "food-catering",
-    title: "Food & Catering",
-    desc: "Register for meal plans and catering options available to delegates throughout Spandan 2026.",
-    formUrl: EXTERNAL_FORM_LINKS.foodCatering,
+    label: "Food & Catering",
+    desc: "Register for meal plans and catering available to delegates throughout Spandan 2026 — choose an individual order, a group order for your contingent, or the Grand Dinner.",
+    links: [
+      { label: "Individual Order Form", url: EXTERNAL_FORM_LINKS.foodIndividual },
+      { label: "Group Order Form", url: EXTERNAL_FORM_LINKS.foodGroup },
+      { label: "Grand Dinner Form", url: EXTERNAL_FORM_LINKS.foodGrandDinner },
+    ],
   },
 ];
 
@@ -222,23 +233,23 @@ export const clubPasses = [
     passLabel: "Lit Pass",
     price: 500,
     type: "club-pass",
-    desc: "Participate in all Literary events free of charge. Individual event registration fee not required."
+    desc: "Grants access to register for all Literary events. Individual event registration fee still applies at checkout."
   },
   {
     id: "quiz-pass",
-    name: "Quiz Pass",
+    name: "The Mad Deck",
     passLabel: "Quiz Pass",
     price: 550,
     type: "club-pass",
-    desc: "Participate in all Quiz events free of charge. Individual event registration fee not required."
+    desc: "Grants access to register for all Quiz events. Individual event registration fee still applies at checkout."
   },
   {
     id: "premium-pass",
-    name: "Premium Pass (Lit & Quiz)",
+    name: "The Golden Key",
     passLabel: "Premium Pass",
     price: 800,
     type: "club-pass",
-    desc: "Participate in all Literary & Quiz events free of charge. Individual event registration fee not required."
+    desc: "Grants access to register for all Literary & Quiz events. Individual event registration fee still applies at checkout."
   }
 ];
 
@@ -262,14 +273,13 @@ export const categoryAccess = {
   "sports": { requiredPasses: [...ALL_TIERS, "sports-pass"] },
   "informals": { requiredPasses: [] },
   "mediquiz": { requiredPasses: [] },
-  "gaming": { requiredPasses: [] },
 };
 
 // Per-event overrides where the category default doesn't apply.
-// Dernier Cri is Tier One/Two only, per Delegate Tier amenities above
-// (Tier Three / The White Rabbit excludes it).
+// Dernier Cri unlocks with Tier One (The Red Queen) only, per Delegate
+// Tier amenities above — Tier Two and Tier Three explicitly exclude it.
 export const eventOverrides = {
-  "dernier-cri": { requiredPasses: ["tier-one", "tier-two"] },
+  "dernier-cri": { requiredPasses: ["tier-one"] },
 };
 
 /**
@@ -318,7 +328,8 @@ export const eventCategories = [
   { id: "sports", label: "Les Jeux (Sports)" },
   { id: "informals", label: "House Informals (Fun Challenges)" },
   { id: "mediquiz", label: "La Lutte (Academic Quiz)" },
-  { id: "gaming", label: "Game Over (Gaming)" }
+  { id: "accommodation", label: "Accommodation", special: true },
+  { id: "food-catering", label: "Food & Catering", special: true },
 ];
 
 export const eventsList = [
@@ -343,8 +354,8 @@ export const eventsList = [
   { id: "solo-dance-western", title: "Solo Dance (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Individual western dance style showcase." },
   { id: "duet-dance-eastern", title: "Duet Dance (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Synchronized eastern duet dance." },
   { id: "duet-dance-western", title: "Duet Dance (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Synchronized western duet dance." },
-  { id: "solo-singing-eastern", title: "Solo Singing (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Eastern solo vocal performance." },
-  { id: "solo-singing-western", title: "Solo Singing (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Western solo vocal performance." },
+  { id: "solo-singing-eastern", title: "Solo Singing (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Eastern solo vocal performance.", externalFormUrl: EXTERNAL_FORM_LINKS.soloSinging, externalFormNote: "Note: Participants must also complete registration through this Google Form." },
+  { id: "solo-singing-western", title: "Solo Singing (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Western solo vocal performance.", externalFormUrl: EXTERNAL_FORM_LINKS.soloSinging, externalFormNote: "Note: Participants must also complete registration through this Google Form." },
   { id: "duet-singing-eastern", title: "Duet Singing (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Harmonized eastern vocal duets." },
   { id: "duet-singing-western", title: "Duet Singing (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Harmonized western vocal duets." },
   { id: "adaptunes", title: "Adaptunes", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Instant choreography on dynamic changing tracks." },
@@ -361,8 +372,8 @@ export const eventsList = [
   { id: "beg-borrow-steal", title: "Beg Borrow Steal", category: "informals", contact: "Krishnendu: 9048016206", price: 160, minTeamSize: 4, desc: "Classic high-energy scavenger hunt (₹160 per team)." },
 
   // La Lutte (MediQuiz)
-  { id: "la-lutte-junior", title: "La Lutte (Junior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 0, desc: "Intercollegiate Medical Quiz for juniors.", externalFormUrl: EXTERNAL_FORM_LINKS.mediquizJunior, externalFormNote: "Note: Users must complete their registration through this Google Form link as well." },
-  { id: "la-lutte-senior", title: "La Lutte (Senior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 0, desc: "Intercollegiate Medical Quiz for seniors.", externalFormUrl: EXTERNAL_FORM_LINKS.mediquizSenior, externalFormNote: "Note: Users must complete their registration through this Google Form link as well." },
+  { id: "la-lutte-junior", title: "La Lutte (Junior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 600, desc: "Intercollegiate Medical Quiz for juniors.", externalFormUrl: EXTERNAL_FORM_LINKS.mediquizJunior, externalFormNote: "Note: Users must complete their registration through this Google Form link as well." },
+  { id: "la-lutte-senior", title: "La Lutte (Senior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 600, desc: "Intercollegiate Medical Quiz for seniors.", externalFormUrl: EXTERNAL_FORM_LINKS.mediquizSenior, externalFormNote: "Note: Users must complete their registration through this Google Form link as well." },
 
   // Literary (Les Littéraires)
   { id: "formal-debate", title: "Formal Debate", category: "literary", contact: "Akash: 9701344959", price: 250, desc: "Rigorous formal argumentation showdown." },
@@ -388,7 +399,7 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 5,
     title: "Basketball",
-    price: 0,
+    price: 350,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "Court battles across divisions.",
     subEvents: ["Men's", "Women's"]
@@ -399,7 +410,7 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 11,
     title: "Cricket",
-    price: 0,
+    price: 350,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "Intercollegiate men's cricket tournament.",
     subEvents: ["Men's"]
@@ -410,7 +421,7 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 11,
     title: "Football",
-    price: 0,
+    price: 350,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "11v11 intercollegiate football championship.",
     subEvents: ["Men's"]
@@ -421,7 +432,7 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 5,
     title: "Futsal",
-    price: 0,
+    price: 350,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "High-octane indoor short-format soccer.",
     subEvents: ["Men's", "Women's"]
@@ -432,7 +443,7 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 11,
     title: "Hockey",
-    price: 0,
+    price: 350,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "Field hockey tournaments in 11s and 5s formats.",
     subEvents: ["Hockey 11s", "Hockey 5s (Men's)", "Hockey 5s (Women's)"]
@@ -443,7 +454,7 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 6,
     title: "Throwball",
-    price: 0,
+    price: 350,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "High-energy aerial rallies across categories.",
     subEvents: ["Men's", "Women's"]
@@ -454,7 +465,7 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 6,
     title: "Volleyball",
-    price: 0,
+    price: 350,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "Spikes, digs, and team net battles.",
     subEvents: ["Men's", "Women's"]
@@ -464,7 +475,7 @@ export const eventsList = [
     category: "sports",
     type: "Non-Team Sports",
     title: "Aquatics",
-    price: 0,
+    price: 250,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "Competitive swimming & aquatic events.",
     subEvents: ["TBD 1", "TBD 2"]
@@ -474,7 +485,7 @@ export const eventsList = [
     category: "sports",
     type: "Non-Team Sports",
     title: "Athletics",
-    price: 0,
+    price: 250,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "Track & field events.",
     subEvents: ["TBD 1", "TBD 2"]
@@ -484,7 +495,7 @@ export const eventsList = [
     category: "sports",
     type: "Non-Team Sports",
     title: "Badminton",
-    price: 0,
+    price: 350,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "Fast shuttlecraft singles & doubles tournaments.",
     subEvents: ["Singles", "Doubles", "Mixed Doubles"]
@@ -494,7 +505,7 @@ export const eventsList = [
     category: "sports",
     type: "Non-Team Sports",
     title: "Carrom",
-    price: 0,
+    price: 350,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "Precision carrom board tournament.",
     subEvents: ["Singles", "Doubles"]
@@ -504,7 +515,7 @@ export const eventsList = [
     category: "sports",
     type: "Non-Team Sports",
     title: "Chess",
-    price: 0,
+    price: 250,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "Mind games across rapid, blitz, bullet, and team setups.",
     subEvents: ["Rapid", "Blitz", "Bullet", "Team"]
@@ -514,7 +525,7 @@ export const eventsList = [
     category: "sports",
     type: "Non-Team Sports",
     title: "Table Tennis",
-    price: 0,
+    price: 350,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "High speed table tennis rallies.",
     subEvents: ["TBD 1", "TBD 2"]
@@ -524,7 +535,7 @@ export const eventsList = [
     category: "sports",
     type: "Non-Team Sports",
     title: "Tennis",
-    price: 0,
+    price: 350,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
     desc: "Lawn tennis championships across all categories.",
     subEvents: [
@@ -535,10 +546,6 @@ export const eventsList = [
       "Mixed Doubles"
     ]
   },
-
-  // Game Over
-  { id: "gaming-offline", title: "FIFA, WWE 2K25 & Mortal Kombat (Offline)", category: "gaming", contact: "Prudhvi: 8056765218", price: 0, desc: "Console gaming battles." },
-  { id: "psvr2", title: "Virtual Reality Experience (PSVR2)", category: "gaming", contact: "Prudhvi: 8056765218", price: 0, desc: "Immersive VR setup with Gran Turismo 7 gaming wheel." },
 ];
 
 export const teamContacts = [

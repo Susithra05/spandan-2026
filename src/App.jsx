@@ -20,6 +20,7 @@ import {
   gettingHere,
   getEventAccess,
   specialSections,
+  BROCHURE_URL,
 } from "./data/festData";
 import AdminDashboard from "./components/AdminDashboard";
 import RegistrationFlow from "./components/RegistrationFlow";
@@ -264,6 +265,15 @@ export default function App() {
   const [showAuthPassword, setShowAuthPassword] = useState(false);
   const [authMode, setAuthMode] = useState("login");
   const [authMessage, setAuthMessage] = useState("");
+  const [authMessageType, setAuthMessageType] = useState("error"); // "error" | "success"
+
+  // Password recovery — Supabase redirects the user back here (per the
+  // redirectTo URL below) with a recovery session; we detect that via
+  // onAuthStateChange's PASSWORD_RECOVERY event and show this view.
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
 
   // Passes this user already owns (from approved purchases) — drives
   // event-gating across the Events tab and the Registration flow.
@@ -297,6 +307,9 @@ export default function App() {
       setUser(session?.user ?? null);
       if (session?.user) fetchOwnedPasses(session.user);
       else setOwnedPasses([]);
+      if (_event === "PASSWORD_RECOVERY") {
+        setShowResetPassword(true);
+      }
     });
 
     return () => subscription?.unsubscribe();
@@ -305,6 +318,7 @@ export default function App() {
   const handleAuth = async (e) => {
     e.preventDefault();
     setAuthMessage("");
+    setAuthMessageType("error");
     try {
       if (authMode === "signup") {
         if (authPassword !== authConfirmPassword) {
@@ -321,6 +335,7 @@ export default function App() {
         });
         if (error) throw error;
         setAuthMessage("Account created! You can now log in.");
+        setAuthMessageType("success");
         setAuthMode("login");
         setAuthConfirmPassword("");
       } else {
@@ -333,7 +348,63 @@ export default function App() {
         setActiveTab("registration");
       }
     } catch (err) {
-      setAuthMessage(err.message);
+      if (authMode === "login" && /invalid login credentials/i.test(err.message)) {
+        setAuthMessage(
+          "Invalid credentials. If you signed up with Google, click \"Sign in with Google\" or use \"Forgot Password\" to set a password."
+        );
+      } else {
+        setAuthMessage(err.message);
+      }
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    setAuthMessage("");
+    const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+    if (error) setAuthMessage(error.message);
+  };
+
+  const handleForgotPassword = async () => {
+    setAuthMessage("");
+    setAuthMessageType("error");
+    if (!authEmail.trim()) {
+      setAuthMessage("Enter your email address above first, then click \"Forgot Password\".");
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(authEmail, {
+      redirectTo: "https://www.jipmerspandan.site/reset-password",
+    });
+    if (error) {
+      setAuthMessage(error.message);
+    } else {
+      setAuthMessage("Password reset email sent — check your inbox for the link.");
+      setAuthMessageType("success");
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    setResetMessage("");
+    if (newPassword !== newPasswordConfirm) {
+      setResetMessage("Passwords do not match.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setResetMessage("Password must be at least 6 characters.");
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      setResetMessage(error.message);
+    } else {
+      setResetMessage("Password updated! You can now use it to log in.");
+      setTimeout(() => {
+        setShowResetPassword(false);
+        setNewPassword("");
+        setNewPasswordConfirm("");
+        setResetMessage("");
+        setActiveTab("home");
+      }, 2000);
     }
   };
 
@@ -359,9 +430,74 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#122519] text-slate-100 flex flex-col selection:bg-lantern-500 selection:text-parchment-50">
+    <div className="relative isolate min-h-screen bg-[#122519] text-slate-100 flex flex-col selection:bg-lantern-500 selection:text-parchment-50">
+      {/* Consistent faded backdrop — same forest scenery as the hero,
+          fixed so it stays put while every page scrolls over it. Low
+          opacity + dark overlay keeps text/card contrast high everywhere. */}
+      <div
+        className="fixed inset-0 -z-10 bg-cover bg-center opacity-[0.14] pointer-events-none"
+        style={{ backgroundImage: "url('/theme-scenery.jpg')" }}
+      />
+      <div className="fixed inset-0 -z-10 bg-[#0b1d18]/70 pointer-events-none" />
+
       {/* CONDITIONAL SPLASH SCREEN */}
       {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
+
+      {/* PASSWORD RESET MODAL — appears when Supabase redirects back here
+          after the user clicks the reset link in their email */}
+      {showResetPassword && (
+        <div className="fixed inset-0 z-[200] bg-canopy-950/90 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="glow-card w-full max-w-md p-8 rounded-3xl space-y-6">
+            <div className="text-center space-y-1">
+              <h3 className="text-2xl font-display font-bold text-parchment-50">Set a New Password</h3>
+              <p className="text-xs text-parchment-100/60">Choose a new password for your account.</p>
+            </div>
+
+            {resetMessage && (
+              <div
+                className={`p-3 rounded-xl border text-xs ${
+                  resetMessage.startsWith("Password updated")
+                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                    : "bg-lantern-500/20 border-lantern-500/40 text-lantern-200"
+                }`}
+              >
+                {resetMessage}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdatePassword} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-300 mb-1">New Password</label>
+                <input
+                  required
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-300 mb-1">Confirm New Password</label>
+                <input
+                  required
+                  type="password"
+                  value={newPasswordConfirm}
+                  onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-2.5 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 focus:outline-none focus:border-mist-400 focus:ring-1 focus:ring-mist-400/40"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full py-3 rounded-full bg-lantern-400 text-canopy-950 font-bold text-sm hover:brightness-105 transition-all"
+              >
+                Update Password
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* NAVBAR */}
       <header className="sticky top-0 z-50 bg-canopy-950/92 backdrop-blur-md border-b-2 border-lantern-500/20">
@@ -548,6 +684,14 @@ export default function App() {
                   >
                     Explore Events
                   </button>
+                  <a
+                    href={BROCHURE_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-8 py-3.5 rounded-full border-2 border-toadstool-400/50 bg-toadstool-500/10 text-toadstool-200 font-bold text-sm hover:bg-toadstool-500/20 hover:rotate-1 transition flex items-center gap-2"
+                  >
+                    📖 View Brochure
+                  </a>
                 </div>
 
                 {/* Quick Info Grid */}
@@ -790,7 +934,11 @@ export default function App() {
                   onClick={() => setSelectedCategory(cat.id)}
                   className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${
                     selectedCategory === cat.id
-                      ? "bg-mist-500 text-canopy-950 shadow-[0_0_15px_rgba(63,167,154,0.4)]"
+                      ? cat.special
+                        ? "bg-toadstool-500 text-canopy-950 shadow-[0_0_15px_rgba(226,100,61,0.4)]"
+                        : "bg-mist-500 text-canopy-950 shadow-[0_0_15px_rgba(63,167,154,0.4)]"
+                      : cat.special
+                      ? "bg-toadstool-500/10 text-toadstool-300 border border-toadstool-500/30 hover:bg-toadstool-500/20"
                       : "bg-white/5 text-slate-300 hover:bg-white/10"
                   }`}
                 >
@@ -799,15 +947,42 @@ export default function App() {
               ))}
             </div>
 
-            {/* Events Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
-              {filteredEvents.length === 0 && (
-                <p className="col-span-full text-center text-sm text-slate-400 py-10">
-                  No events match "{eventSearchQuery}".
-                </p>
-              )}
-              {filteredEvents.map((ev) => {
-                const hasSubEvents = ev.subEvents && ev.subEvents.length > 0;
+            {/* Accommodation / Food & Catering panel (selected from the domain bar above) */}
+            {specialSections.some((s) => s.id === selectedCategory) ? (
+              <div className="max-w-2xl mx-auto glow-card p-8 rounded-3xl space-y-5 border-toadstool-500/30">
+                {specialSections
+                  .filter((s) => s.id === selectedCategory)
+                  .map((sec) => (
+                    <div key={sec.id} className="space-y-4">
+                      <h3 className="text-xl font-display font-bold text-parchment-50">{sec.label}</h3>
+                      <p className="text-sm text-slate-300 leading-relaxed">{sec.desc}</p>
+                      <div className="flex flex-wrap gap-3">
+                        {sec.links.map((link) => (
+                          <a
+                            key={link.url}
+                            href={link.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-block px-5 py-2.5 rounded-full bg-toadstool-500 text-canopy-950 text-xs font-bold hover:bg-toadstool-400 transition"
+                          >
+                            {link.label} →
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <>
+                {/* Events Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+                  {filteredEvents.length === 0 && (
+                    <p className="col-span-full text-center text-sm text-slate-400 py-10">
+                      No events match "{eventSearchQuery}".
+                    </p>
+                  )}
+                  {filteredEvents.map((ev) => {
+                    const hasSubEvents = ev.subEvents && ev.subEvents.length > 0;
                 const access = getEventAccess(ev, ownedPasses);
 
                 return (
@@ -879,11 +1054,8 @@ export default function App() {
                       )}
                     </div>
 
-                    <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs">
-                      <span
-                        className="text-slate-400 truncate max-w-[180px]"
-                        title={ev.contact}
-                      >
+                    <div className="pt-4 border-t border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+                      <span className="text-slate-400 break-words min-w-0 flex-1">
                         Contact: {ev.contact}
                       </span>
                       <button
@@ -908,25 +1080,9 @@ export default function App() {
                   </div>
                 );
               })}
-            </div>
-
-            {/* Accommodation & Food/Catering */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
-              {specialSections.map((sec) => (
-                <div key={sec.id} className="glow-card p-6 rounded-2xl space-y-3 border-toadstool-500/30">
-                  <h3 className="text-lg font-display font-bold text-parchment-50">{sec.title}</h3>
-                  <p className="text-xs text-slate-300 leading-relaxed">{sec.desc}</p>
-                  <a
-                    href={sec.formUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block px-5 py-2 rounded-full bg-toadstool-500 text-canopy-950 text-xs font-bold hover:bg-toadstool-400 transition"
-                  >
-                    Register via Google Form →
-                  </a>
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </section>
         )}
 
@@ -1112,10 +1268,36 @@ export default function App() {
               </div>
 
               {authMessage && (
-                <div className="p-3 rounded-xl bg-lantern-500/20 border border-lantern-500/40 text-xs text-lantern-200">
+                <div
+                  className={`p-3 rounded-xl border text-xs ${
+                    authMessageType === "success"
+                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                      : "bg-lantern-500/20 border-lantern-500/40 text-lantern-200"
+                  }`}
+                >
                   {authMessage}
                 </div>
               )}
+
+              <button
+                type="button"
+                onClick={handleGoogleAuth}
+                className="w-full py-3 rounded-full bg-white text-canopy-950 font-bold text-xs flex items-center justify-center gap-2.5 hover:brightness-95 transition-all"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                </svg>
+                Sign in with Google
+              </button>
+
+              <div className="flex items-center gap-3 text-[10px] text-slate-500">
+                <div className="flex-1 h-px bg-white/10" />
+                OR
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
 
               <form onSubmit={handleAuth} className="space-y-4 text-xs">
                 <div>
@@ -1190,6 +1372,15 @@ export default function App() {
                       )}
                     </button>
                   </div>
+                  {authMode === "login" && (
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      className="text-[11px] text-mist-400 hover:text-mist-300 underline mt-1.5"
+                    >
+                      Forgot Password?
+                    </button>
+                  )}
                 </div>
 
                 {authMode === "signup" && (

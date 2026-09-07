@@ -54,7 +54,7 @@ export default function Footer({ setActiveTab }) {
           <ul className="space-y-2 text-xs">
             {[
               { label: "Home", tab: "home" },
-              { label: "About JIPMER", tab: "about" },
+              { label: "About", tab: "about" },
               { label: "Events", tab: "events" },
               { label: "Schedule", tab: "schedule" },
               { label: "Registration & Passes", tab: "registration" },
@@ -86,6 +86,8 @@ export default function Footer({ setActiveTab }) {
               <span className="text-lantern-400 shrink-0">✉</span>
               <a
                 href={`mailto:${festDetails.instagram}@jipmer.edu.in`}
+                target="_blank"
+                rel="noreferrer"
                 className="hover:text-lantern-200 transition"
               >
                 spandan2026@jipmer.edu.in

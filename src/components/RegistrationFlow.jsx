@@ -680,7 +680,13 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${
-                  selectedCategory === cat.id ? "bg-mist-500 text-canopy-950" : "bg-white/5 text-slate-300 hover:bg-white/10"
+                  selectedCategory === cat.id
+                    ? cat.special
+                      ? "bg-toadstool-500 text-canopy-950"
+                      : "bg-mist-500 text-canopy-950"
+                    : cat.special
+                    ? "bg-toadstool-500/10 text-toadstool-300 border border-toadstool-500/30 hover:bg-toadstool-500/20"
+                    : "bg-white/5 text-slate-300 hover:bg-white/10"
                 }`}
               >
                 {cat.label}
@@ -688,16 +694,42 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredEvents.length === 0 && (
-              <p className="col-span-full text-center text-sm text-parchment-100/50 py-8">No events match your search.</p>
-            )}
-            {filteredEvents.map((ev) => {
-              const access = getEventAccess(ev, ownedPasses);
-              const hasSub = ev.subEvents && ev.subEvents.length > 0;
+          {specialSections.some((s) => s.id === selectedCategory) ? (
+            <div className="max-w-2xl mx-auto glow-card p-8 rounded-3xl space-y-5 border-toadstool-500/30">
+              {specialSections
+                .filter((s) => s.id === selectedCategory)
+                .map((sec) => (
+                  <div key={sec.id} className="space-y-4">
+                    <h3 className="text-xl font-display font-bold text-parchment-50">{sec.label}</h3>
+                    <p className="text-sm text-slate-300 leading-relaxed">{sec.desc}</p>
+                    <div className="flex flex-wrap gap-3">
+                      {sec.links.map((link) => (
+                        <a
+                          key={link.url}
+                          href={link.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-block px-5 py-2.5 rounded-full bg-toadstool-500 text-canopy-950 text-xs font-bold hover:bg-toadstool-400 transition"
+                        >
+                          {link.label} →
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredEvents.length === 0 && (
+                  <p className="col-span-full text-center text-sm text-parchment-100/50 py-8">No events match your search.</p>
+                )}
+                {filteredEvents.map((ev) => {
+                  const access = getEventAccess(ev, ownedPasses);
+                  const hasSub = ev.subEvents && ev.subEvents.length > 0;
 
-              return (
-                <div key={ev.id} className="glow-card p-5 rounded-2xl flex flex-col justify-between space-y-3 relative">
+                  return (
+                    <div key={ev.id} className="glow-card p-5 rounded-2xl flex flex-col justify-between space-y-3 relative">
                   {!access.unlocked && <LockBadge label={access.requiredLabel} />}
 
                   <div>
@@ -777,25 +809,9 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                 </div>
               );
             })}
-          </div>
-
-          {/* Accommodation & Food/Catering — not gated, link out to external forms */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-4">
-            {specialSections.map((sec) => (
-              <div key={sec.id} className="glow-card p-6 rounded-2xl space-y-3 border-toadstool-500/30">
-                <h3 className="text-lg font-display font-bold text-parchment-50">{sec.title}</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">{sec.desc}</p>
-                <a
-                  href={sec.formUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-block px-5 py-2 rounded-full bg-toadstool-500 text-canopy-950 text-xs font-bold hover:bg-toadstool-400 transition"
-                >
-                  Register via Google Form →
-                </a>
               </div>
-            ))}
-          </div>
+            </>
+          )}
 
           {cartEvents.length > 0 && (
             <div className="glow-card p-6 rounded-3xl space-y-4">
