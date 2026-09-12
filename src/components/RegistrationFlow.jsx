@@ -8,8 +8,11 @@ import {
   eventCategories,
   eventsList,
   specialSections,
+  accommodation,
   getEventAccess,
   isTeamEvent,
+  subEventLabel,
+  FORM_ONLY_EVENT_IDS,
 } from "../data/festData";
 
 const CheckIcon = () => (
@@ -456,16 +459,17 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
   const eventsAmount = useMemo(() => cartEvents.reduce((sum, e) => sum + (e.price || 0), 0), [cartEvents]);
 
   const addEventToCart = (event, subEvent = null) => {
-    const key = subEvent ? `${event.id}:${subEvent}` : event.id;
+    const subLabel = subEvent ? subEventLabel(subEvent) : null;
+    const key = subLabel ? `${event.id}:${subLabel}` : event.id;
     if (cartEvents.some((e) => e.key === key)) return;
-    const access = getEventAccess(event, ownedPasses);
+    const access = getEventAccess(event, ownedPasses, subEvent);
     const team = isTeamEvent(event);
     const minSize = event.minTeamSize || (team ? 2 : 0);
     const entry = {
       key,
       eventId: event.id,
-      title: subEvent ? `${event.title} — ${subEvent}` : event.title,
-      subEvent,
+      title: subLabel ? `${event.title} — ${subLabel}` : event.title,
+      subEvent: subLabel,
       price: access.price,
       isTeam: team,
       minTeamSize: minSize,
@@ -695,29 +699,75 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
           </div>
 
           {specialSections.some((s) => s.id === selectedCategory) ? (
-            <div className="max-w-2xl mx-auto glow-card p-8 rounded-3xl space-y-5 border-toadstool-500/30">
-              {specialSections
-                .filter((s) => s.id === selectedCategory)
-                .map((sec) => (
-                  <div key={sec.id} className="space-y-4">
-                    <h3 className="text-xl font-display font-bold text-parchment-50">{sec.label}</h3>
-                    <p className="text-sm text-slate-300 leading-relaxed">{sec.desc}</p>
-                    <div className="flex flex-wrap gap-3">
-                      {sec.links.map((link) => (
-                        <a
-                          key={link.url}
-                          href={link.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-block px-5 py-2.5 rounded-full bg-toadstool-500 text-canopy-950 text-xs font-bold hover:bg-toadstool-400 transition"
-                        >
-                          {link.label} →
-                        </a>
-                      ))}
+            selectedCategory === "accommodation" ? (
+              <div className="max-w-2xl mx-auto glow-card p-8 rounded-3xl space-y-4 border-toadstool-500/30">
+                <div>
+                  <h3 className="text-xl font-display font-bold text-parchment-50">{accommodation.heading}</h3>
+                  <p className="font-hand text-lg text-toadstool-300/90">{accommodation.subheading}</p>
+                </div>
+                <ul className="space-y-2 text-sm text-parchment-100/75">
+                  {accommodation.points.map((pt, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-mist-400 mt-0.5">✦</span>
+                      <span>{pt}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="pt-3 border-t border-white/10">
+                  <p className="text-xs uppercase tracking-wider text-toadstool-300 font-bold mb-2">
+                    {accommodation.termsHeading}
+                  </p>
+                  <ul className="space-y-1.5 text-xs text-parchment-100/65">
+                    {accommodation.terms.map((t, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-toadstool-400 mt-0.5">•</span>
+                        <span>{t}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <p className="text-xs text-lantern-300">Contact — {accommodation.contact}</p>
+                <div className="flex flex-wrap gap-3 pt-2">
+                  {specialSections
+                    .find((s) => s.id === "accommodation")
+                    .links.map((link) => (
+                      <a
+                        key={link.url}
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block px-5 py-2.5 rounded-full bg-toadstool-500 text-canopy-950 text-xs font-bold hover:bg-toadstool-400 transition"
+                      >
+                        {link.label} →
+                      </a>
+                    ))}
+                </div>
+              </div>
+            ) : (
+              <div className="max-w-2xl mx-auto glow-card p-8 rounded-3xl space-y-5 border-toadstool-500/30">
+                {specialSections
+                  .filter((s) => s.id === selectedCategory)
+                  .map((sec) => (
+                    <div key={sec.id} className="space-y-4">
+                      <h3 className="text-xl font-display font-bold text-parchment-50">{sec.label}</h3>
+                      <p className="text-sm text-slate-300 leading-relaxed">{sec.desc}</p>
+                      <div className="flex flex-wrap gap-3">
+                        {sec.links.map((link) => (
+                          <a
+                            key={link.url}
+                            href={link.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-block px-5 py-2.5 rounded-full bg-toadstool-500 text-canopy-950 text-xs font-bold hover:bg-toadstool-400 transition"
+                          >
+                            {link.label} →
+                          </a>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-            </div>
+                  ))}
+              </div>
+            )
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -727,10 +777,21 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                 {filteredEvents.map((ev) => {
                   const access = getEventAccess(ev, ownedPasses);
                   const hasSub = ev.subEvents && ev.subEvents.length > 0;
+                  const isFormOnly = FORM_ONLY_EVENT_IDS.includes(ev.id);
 
                   return (
-                    <div key={ev.id} className="glow-card p-5 rounded-2xl flex flex-col justify-between space-y-3 relative">
-                  {!access.unlocked && <LockBadge label={access.requiredLabel} />}
+                    <div
+                      key={ev.id}
+                      className={`glow-card p-5 rounded-2xl flex flex-col justify-between space-y-3 relative ${
+                        isFormOnly ? "!border-emerald-400/40 shadow-[0_0_20px_-6px_rgba(52,211,153,0.35)]" : ""
+                      }`}
+                    >
+                  {!access.unlocked && !isFormOnly && <LockBadge label={access.requiredLabel} />}
+                  {isFormOnly && (
+                    <span className="absolute top-3 right-3 z-10 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">
+                      No Pass Needed
+                    </span>
+                  )}
 
                   <div>
                     <div className="flex justify-between items-start mb-1 pr-8">
@@ -739,7 +800,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                         {ev.category.replace("-", " ")}
                       </span>
                       <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                        {access.price > 0 ? `₹${access.price}` : "Free"}
+                        {!isFormOnly && (access.price > 0 ? `₹${access.price}` : "Free")}
                       </span>
                     </div>
                     <h3 className="text-base font-bold text-parchment-50">{ev.title}</h3>
@@ -759,14 +820,16 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                     )}
                   </div>
 
-                  {hasSub ? (
+                  {isFormOnly ? null : hasSub ? (
                     <div className="flex flex-wrap gap-1.5">
-                      {ev.subEvents.map((sub) => {
-                        const key = `${ev.id}:${sub}`;
+                      {ev.subEvents.map((sub, idx) => {
+                        const subLabel = subEventLabel(sub);
+                        const key = `${ev.id}:${subLabel}`;
                         const inCart = cartEvents.some((e) => e.key === key);
+                        const subAccess = getEventAccess(ev, ownedPasses, sub);
                         return (
                           <button
-                            key={sub}
+                            key={idx}
                             disabled={!access.unlocked}
                             onClick={() => (inCart ? removeEventFromCart(key) : addEventToCart(ev, sub))}
                             className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition border disabled:opacity-40 disabled:cursor-not-allowed ${
@@ -774,7 +837,8 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                             }`}
                           >
                             {inCart ? "✓ " : "+ "}
-                            {sub}
+                            {subLabel}
+                            {typeof sub === "object" ? ` · ${subAccess.price > 0 ? `₹${subAccess.price}` : "Free"}` : ""}
                           </button>
                         );
                       })}

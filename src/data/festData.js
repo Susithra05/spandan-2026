@@ -9,6 +9,8 @@ export const EXTERNAL_FORM_LINKS = {
   mediquizJunior: "https://forms.gle/ttLJVZU4rcCxb3288",
   mediquizSenior: "https://forms.gle/HPKEfizx3ovPLzU27",
   soloSinging: "https://docs.google.com/forms/d/e/1FAIpQLSel7EED6WW0sg5gkecM-GQzAluSXcxqRR5FWnwMTQqvcWILLQ/viewform?usp=publish-editor",
+  arcaneHeist: "https://docs.google.com/forms/d/16G9yHWSTdYD1poNoufJjLfDlpmqqqwtQmlc3jeIamZY/edit",
+  begBorrowSteal: "https://docs.google.com/forms/d/1rtnW4f1mt3zZm2KHBnRbKMZgqkDltA85aSCCS0nc8ww/edit",
 };
 
 // TODO: replace "#" with the new official brochure's URL once it's ready
@@ -62,7 +64,7 @@ export const aboutJipmer = {
 export const aboutSpandanExtended = {
   heading: "About Spandan",
   paragraphs: [
-    "Spandan — a 5 day long spectacle where reality dissolves into a waking dream, where imagination and magic take center stage, and where medicos from all over the country come together for South India's biggest medical college fest.",
+    "Spandan — a 7 day long spectacle where reality dissolves into a waking dream, where imagination and magic take center stage, and where medicos from all over the country come together for South India's biggest medical college fest.",
     "Step into the unknown on the 27th of October, and unravel the mystique on November 1st. Take on challenges in Les Jeux, showcase your artistic brilliance in Les Beaux-Arts, engage in thought-provoking debates at Les Littéraires, display your academic prowess at La Lutte, and revel in the enchanting fun of House Informals.",
     "Don't miss the captivating highlights of this bonanza: the pro shows and Spandan's iconic ramp walk, the Dernier Cri. Join us as we journey through this \"Enchanted Reverie\" into various mystical realms and wonderland, and create unforgettable memories. After all, it's the thrill of discovery that makes the journey special.",
   ],
@@ -229,19 +231,19 @@ export const clubPasses = [
   },
   {
     id: "lit-pass",
-    name: "The Knave of Hearts",
+    name: "Cheshire Charades",
     passLabel: "Lit Pass",
     price: 500,
     type: "club-pass",
-    desc: "Grants access to register for all Literary events. Individual event registration fee still applies at checkout."
+    desc: "Participate in all Literary events free of charge — no separate event fee."
   },
   {
     id: "quiz-pass",
-    name: "The Mad Deck",
+    name: "Wonderland Whiz",
     passLabel: "Quiz Pass",
     price: 550,
     type: "club-pass",
-    desc: "Grants access to register for all Quiz events. Individual event registration fee still applies at checkout."
+    desc: "Participate in all Quiz events free of charge — no separate event fee."
   },
   {
     id: "premium-pass",
@@ -249,55 +251,77 @@ export const clubPasses = [
     passLabel: "Premium Pass",
     price: 800,
     type: "club-pass",
-    desc: "Grants access to register for all Literary & Quiz events. Individual event registration fee still applies at checkout."
+    desc: "Participate in all Literary & Quiz events free of charge — no separate event fee."
   }
 ];
 
 // ----------------------------------------------------------------
 // PASS-GATED EVENT ACCESS
-// Which passes/tiers unlock a category. Owning a pass grants ACCESS
-// to register for that category — it does not waive the per-event
-// fee. Every event keeps its own listed price at checkout, always,
-// per the official brochure's "individual registration fee to be
-// paid separately" rule (now applied uniformly to every pass type,
-// including Delegate Tiers).
+// A pass/tier always grants ACCESS to register for its category.
+// Whether it also waives the per-event fee depends on the pass:
+//   - Delegate Tiers (any):        unlock access, fee still applies.
+//   - Cult Pass / The Mad March
+//     Hare (Sports Pass):          unlock access ("viewer" pass,
+//                                  per the brochure), fee still applies.
+//   - Cheshire Charades (Lit),
+//     Wonderland Whiz (Quiz),
+//     The Golden Key (Premium):    unlock access AND make matching
+//                                  events completely free (₹0).
 // ----------------------------------------------------------------
 const ALL_TIERS = ["tier-one", "tier-two", "tier-three"];
 
 export const categoryAccess = {
-  "cult-major": { requiredPasses: [...ALL_TIERS, "cult-pass"] },
-  "cult-minor": { requiredPasses: [...ALL_TIERS, "cult-pass"] },
-  "fine-arts": { requiredPasses: [...ALL_TIERS, "cult-pass"] },
-  "literary": { requiredPasses: [...ALL_TIERS, "lit-pass", "premium-pass"] },
-  "quiz": { requiredPasses: [...ALL_TIERS, "quiz-pass", "premium-pass"] },
-  "sports": { requiredPasses: [...ALL_TIERS, "sports-pass"] },
-  "informals": { requiredPasses: [] },
-  "mediquiz": { requiredPasses: [] },
+  "cult-major": { requiredPasses: [...ALL_TIERS, "cult-pass"], freeWithPasses: [] },
+  "cult-minor": { requiredPasses: [...ALL_TIERS, "cult-pass"], freeWithPasses: [] },
+  "fine-arts": { requiredPasses: [...ALL_TIERS, "cult-pass"], freeWithPasses: [] },
+  "literary": { requiredPasses: [...ALL_TIERS, "lit-pass", "premium-pass"], freeWithPasses: ["lit-pass", "premium-pass"] },
+  "quiz": { requiredPasses: [...ALL_TIERS, "quiz-pass", "premium-pass"], freeWithPasses: ["quiz-pass", "premium-pass"] },
+  "sports": { requiredPasses: [...ALL_TIERS, "sports-pass"], freeWithPasses: [] },
+  "informals": { requiredPasses: [], freeWithPasses: [] },
+  "mediquiz": { requiredPasses: [], freeWithPasses: [] },
 };
 
 // Per-event overrides where the category default doesn't apply.
-// Dernier Cri unlocks with Tier One (The Red Queen) only, per Delegate
-// Tier amenities above — Tier Two and Tier Three explicitly exclude it.
 export const eventOverrides = {
-  "dernier-cri": { requiredPasses: ["tier-one"] },
+  // Dernier Cri unlocks with Tier One (The Red Queen) only, per Delegate
+  // Tier amenities above — Tier Two and Tier Three explicitly exclude it.
+  "dernier-cri": { requiredPasses: ["tier-one"], freeWithPasses: [] },
+  // Solo Singing sits under Cultural Minor (normally pass-gated), but per
+  // the Google-Form-only workflow these two are open to everyone.
+  "solo-singing-eastern": { requiredPasses: [], freeWithPasses: [] },
+  "solo-singing-western": { requiredPasses: [], freeWithPasses: [] },
 };
+
+// Events that register ENTIRELY through an external Google Form — no
+// pass required, no in-app "Add Event" button, no lock ever shown.
+export const FORM_ONLY_EVENT_IDS = [
+  "arcane-heist",
+  "beg-borrow-steal",
+  "la-lutte-junior",
+  "la-lutte-senior",
+  "solo-singing-eastern",
+  "solo-singing-western",
+];
 
 /**
  * Given an event and the set of pass codes a user owns, work out
- * whether they can register for it. Price is always the event's own
- * listed price when unlocked — no pass makes an event free, a pass
- * only unlocks the *ability* to buy it.
+ * whether they can register for it and what it costs. A sub-event
+ * (string or {name, price}) can override the parent event's price —
+ * used by Gymnasium, where each lift is priced separately.
  */
-export function getEventAccess(event, ownedPassCodes = []) {
-  const rule = eventOverrides[event.id] || categoryAccess[event.category] || { requiredPasses: [] };
+export function getEventAccess(event, ownedPassCodes = [], subEvent = null) {
+  const rule = eventOverrides[event.id] || categoryAccess[event.category] || { requiredPasses: [], freeWithPasses: [] };
 
   const isOpen = rule.requiredPasses.length === 0;
   const owns = (code) => ownedPassCodes.includes(code);
   const unlocked = isOpen || rule.requiredPasses.some(owns);
+  const free = !isOpen && (rule.freeWithPasses || []).some(owns);
+
+  const basePrice = subEvent && typeof subEvent === "object" ? subEvent.price : event.price;
 
   return {
     unlocked,
-    price: event.price,
+    price: unlocked && free ? 0 : basePrice,
     requiredLabel: unlocked
       ? null
       : rule.requiredPasses
@@ -310,6 +334,12 @@ export function getEventAccess(event, ownedPassCodes = []) {
   };
 }
 
+// Normalizes a subEvents entry (plain string OR {name, price}) into
+// a display label — used anywhere sub-events are rendered.
+export function subEventLabel(sub) {
+  return typeof sub === "string" ? sub : sub.name;
+}
+
 // Team events: informals and team-format sports need a roster.
 // (Individual/solo sports and all cultural/literary/quiz events are
 // single-participant registrations.)
@@ -320,9 +350,9 @@ export function isTeamEvent(event) {
 
 export const eventCategories = [
   { id: "all", label: "All Realities" },
-  { id: "cult-major", label: "Cultural Major (Dance, Music & Fashion)" },
-  { id: "cult-minor", label: "Cultural Minor (Solo & Duet Performances)" },
-  { id: "fine-arts", label: "Les Beaux Arts (Fine Arts)" },
+  { id: "cult-major", label: "Les Beaux Arts (Cultural Major)" },
+  { id: "cult-minor", label: "Les Beaux Arts (Cultural Minor)" },
+  { id: "fine-arts", label: "Motif (Fine Arts)" },
   { id: "literary", label: "Les Littéraires (Literature & Debating)" },
   { id: "quiz", label: "Quizzes (General Knowledge)" },
   { id: "sports", label: "Les Jeux (Sports)" },
@@ -333,7 +363,7 @@ export const eventCategories = [
 ];
 
 export const eventsList = [
-  // Fine Arts (Les Beaux Arts / Motif)
+  // Fine Arts (Motif)
   { id: "painting", title: "Painting", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 100, desc: "Express the wonderland on canvas." },
   { id: "sketching", title: "Sketching", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 100, desc: "Express the wonderland on paper with sketches." },
   { id: "collage", title: "Collage", category: "fine-arts", contact: "Kavyanjali: 7892741773", price: 100, desc: "Creative collage art competition." },
@@ -354,8 +384,8 @@ export const eventsList = [
   { id: "solo-dance-western", title: "Solo Dance (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Individual western dance style showcase." },
   { id: "duet-dance-eastern", title: "Duet Dance (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Synchronized eastern duet dance." },
   { id: "duet-dance-western", title: "Duet Dance (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Synchronized western duet dance." },
-  { id: "solo-singing-eastern", title: "Solo Singing (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Eastern solo vocal performance.", externalFormUrl: EXTERNAL_FORM_LINKS.soloSinging, externalFormNote: "Note: Participants must also complete registration through this Google Form." },
-  { id: "solo-singing-western", title: "Solo Singing (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Western solo vocal performance.", externalFormUrl: EXTERNAL_FORM_LINKS.soloSinging, externalFormNote: "Note: Participants must also complete registration through this Google Form." },
+  { id: "solo-singing-eastern", title: "Solo Singing (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Eastern solo vocal performance.", externalFormUrl: EXTERNAL_FORM_LINKS.soloSinging, externalFormNote: "Note: Participants should complete registration for this event through this Google Form Only." },
+  { id: "solo-singing-western", title: "Solo Singing (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 0, desc: "Western solo vocal performance.", externalFormUrl: EXTERNAL_FORM_LINKS.soloSinging, externalFormNote: "Note: Participants should complete registration for this event through this Google Form Only." },
   { id: "duet-singing-eastern", title: "Duet Singing (Eastern)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Harmonized eastern vocal duets." },
   { id: "duet-singing-western", title: "Duet Singing (Western)", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 100, desc: "Harmonized western vocal duets." },
   { id: "adaptunes", title: "Adaptunes", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Instant choreography on dynamic changing tracks." },
@@ -368,12 +398,12 @@ export const eventsList = [
   { id: "adzap", title: "Adzap", category: "cult-minor", contact: "Kavyanjali: 7892741773", price: 150, desc: "Creative advertising and presentation showdown." },
 
   // House Informals
-  { id: "arcane-heist", title: "Arcane Heist", category: "informals", contact: "Krishnendu: 9048016206", price: 300, minTeamSize: 4, desc: "Immersive campus heist challenge (₹300 per team)." },
-  { id: "beg-borrow-steal", title: "Beg Borrow Steal", category: "informals", contact: "Krishnendu: 9048016206", price: 160, minTeamSize: 4, desc: "Classic high-energy scavenger hunt (₹160 per team)." },
+  { id: "arcane-heist", title: "Arcane Heist", category: "informals", contact: "Krishnendu: 9048016206", price: 0, minTeamSize: 4, desc: "Immersive campus heist challenge.", externalFormUrl: EXTERNAL_FORM_LINKS.arcaneHeist, externalFormNote: "Note: Participants should complete registration for this event through this Google Form Only." },
+  { id: "beg-borrow-steal", title: "Beg Borrow Steal", category: "informals", contact: "Krishnendu: 9048016206", price: 0, minTeamSize: 4, desc: "Classic high-energy scavenger hunt.", externalFormUrl: EXTERNAL_FORM_LINKS.begBorrowSteal, externalFormNote: "Note: Participants should complete registration for this event through this Google Form Only." },
 
   // La Lutte (MediQuiz)
-  { id: "la-lutte-junior", title: "La Lutte (Junior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 600, desc: "Intercollegiate Medical Quiz for juniors.", externalFormUrl: EXTERNAL_FORM_LINKS.mediquizJunior, externalFormNote: "Note: Users must complete their registration through this Google Form link as well." },
-  { id: "la-lutte-senior", title: "La Lutte (Senior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 600, desc: "Intercollegiate Medical Quiz for seniors.", externalFormUrl: EXTERNAL_FORM_LINKS.mediquizSenior, externalFormNote: "Note: Users must complete their registration through this Google Form link as well." },
+  { id: "la-lutte-junior", title: "La Lutte (Junior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 0, desc: "Intercollegiate Medical Quiz for juniors.", externalFormUrl: EXTERNAL_FORM_LINKS.mediquizJunior, externalFormNote: "Note: Participants should complete registration for this event through this Google Form Only." },
+  { id: "la-lutte-senior", title: "La Lutte (Senior MediQuiz)", category: "mediquiz", contact: "Praneetha: 6380924669", price: 0, desc: "Intercollegiate Medical Quiz for seniors.", externalFormUrl: EXTERNAL_FORM_LINKS.mediquizSenior, externalFormNote: "Note: Participants should complete registration for this event through this Google Form Only." },
 
   // Literary (Les Littéraires)
   { id: "formal-debate", title: "Formal Debate", category: "literary", contact: "Akash: 9701344959", price: 250, desc: "Rigorous formal argumentation showdown." },
@@ -386,8 +416,8 @@ export const eventsList = [
 
   // Quizzes (Les Littéraires)
   { id: "tj-jaishankar-quiz", title: "TJ Jaishankar Memorial Open Quiz by Major Chandrakant Nair", category: "quiz", contact: "Sai Ajay: 6360913421", price: 250, desc: "Flagship open general quiz." },
-  { id: "sports-quiz", title: "Sports Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 150, desc: "Ultimate trivia for sports enthusiasts." },
-  { id: "fandom-quiz", title: "Fandom Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 150, desc: "Pop culture, movies, TV shows and books quiz." },
+  { id: "sports-quiz", title: "Offside - Sports Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 150, desc: "Ultimate trivia for sports enthusiasts." },
+  { id: "fandom-quiz", title: "Stardom - Fandom Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 150, desc: "Pop culture, movies, TV shows and books quiz." },
   { id: "literature-quiz", title: "Literature Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 150, desc: "Literary trivia and classic works." },
   { id: "tlc-quiz", title: "Travel, Living & Culture Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 150, desc: "World culture, travel and lifestyle trivia." },
   { id: "rewind-quiz", title: "Rewind Quiz", category: "quiz", contact: "Sai Ajay: 6360913421", price: 150, desc: "Nostalgia and retro events quiz." },
@@ -399,8 +429,8 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 5,
     title: "Basketball",
-    price: 350,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 300,
+    contact: "Guru: 9182915457 / Sanjay: 8825444851 / Rahul: 8522067425 / Kamalika: 9008931094 / Nikitha: 9030787037",
     desc: "Court battles across divisions.",
     subEvents: ["Men's", "Women's"]
   },
@@ -410,8 +440,8 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 11,
     title: "Cricket",
-    price: 350,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 300,
+    contact: "Karthik: 6303874139 / Raveendra: 8143111533",
     desc: "Intercollegiate men's cricket tournament.",
     subEvents: ["Men's"]
   },
@@ -421,8 +451,8 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 11,
     title: "Football",
-    price: 350,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 300,
+    contact: "Ruthvik: 9346353160 / Prem: 7825029059",
     desc: "11v11 intercollegiate football championship.",
     subEvents: ["Men's"]
   },
@@ -432,8 +462,8 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 5,
     title: "Futsal",
-    price: 350,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 300,
+    contact: "Rahul: 6301785989 / Thanmay: 8317690859 / Chaitanya: 8877775566 / Farhat: 8688743769",
     desc: "High-octane indoor short-format soccer.",
     subEvents: ["Men's", "Women's"]
   },
@@ -443,8 +473,8 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 11,
     title: "Hockey",
-    price: 350,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 300,
+    contact: "Abhishek: 9493604268 / Manideep: 6309702436 / Santhoshini: 7981897219",
     desc: "Field hockey tournaments in 11s and 5s formats.",
     subEvents: ["Hockey 11s", "Hockey 5s (Men's)", "Hockey 5s (Women's)"]
   },
@@ -454,8 +484,8 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 6,
     title: "Throwball",
-    price: 350,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 300,
+    contact: "Bruhathi: 9441506027 / Elisha: 9398348069",
     desc: "High-energy aerial rallies across categories.",
     subEvents: ["Men's", "Women's"]
   },
@@ -465,8 +495,8 @@ export const eventsList = [
     type: "Team Sports",
     minTeamSize: 6,
     title: "Volleyball",
-    price: 350,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 300,
+    contact: "Vishwa: 7337092925 / Thrivedhi: 7981958991 / Yashwanth: 9392607606 / Vyshnavi: 8501080093",
     desc: "Spikes, digs, and team net battles.",
     subEvents: ["Men's", "Women's"]
   },
@@ -475,38 +505,45 @@ export const eventsList = [
     category: "sports",
     type: "Non-Team Sports",
     title: "Aquatics",
-    price: 250,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 200,
+    contact: "Rupesh: 6305669174 / Siddartha: 6302770266",
     desc: "Competitive swimming & aquatic events.",
-    subEvents: ["TBD 1", "TBD 2"]
+    subEvents: [
+      "Men's Freestyle 50m", "Men's Backstroke 50m", "Men's Breaststroke 50m", "Men's Butterfly 50m", "Men's Freestyle 4x50m",
+      "Women's Freestyle 50m", "Women's Backstroke 50m", "Women's Breaststroke 50m", "Women's Butterfly 50m",
+      "Mixed Freestyle 4x50m"
+    ]
   },
   {
     id: "athletics",
     category: "sports",
     type: "Non-Team Sports",
     title: "Athletics",
-    price: 250,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 200,
+    contact: "Abhijith: 9959362836 / Dhanush: 9505603451",
     desc: "Track & field events.",
-    subEvents: ["TBD 1", "TBD 2"]
+    subEvents: [
+      "Men's 100m", "Men's 200m", "Men's 400m", "Men's 800m", "Men's 1500m", "Men's 4x100m", "Men's Shotput", "Men's Discus Throw", "Men's Long Jump",
+      "Women's 100m", "Women's 200m", "Women's 400m", "Women's 800m", "Women's 1500m", "Women's 4x100m", "Women's Shotput", "Women's Discus Throw", "Women's Long Jump"
+    ]
   },
   {
     id: "badminton",
     category: "sports",
     type: "Non-Team Sports",
     title: "Badminton",
-    price: 350,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 300,
+    contact: "Rohit: 9652757103 / Nithin: 8248974822",
     desc: "Fast shuttlecraft singles & doubles tournaments.",
-    subEvents: ["Singles", "Doubles", "Mixed Doubles"]
+    subEvents: ["Men's Team Event", "Women's Team Event", "Mixed Doubles"]
   },
   {
     id: "carrom",
     category: "sports",
     type: "Non-Team Sports",
     title: "Carrom",
-    price: 350,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 300,
+    contact: "Hemanth: 6304426622 / Praharsh: 7569443743",
     desc: "Precision carrom board tournament.",
     subEvents: ["Singles", "Doubles"]
   },
@@ -515,28 +552,28 @@ export const eventsList = [
     category: "sports",
     type: "Non-Team Sports",
     title: "Chess",
-    price: 250,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 200,
+    contact: "Karthik: 8925324459 / Kaadambari: 7032613316",
     desc: "Mind games across rapid, blitz, bullet, and team setups.",
-    subEvents: ["Rapid", "Blitz", "Bullet", "Team"]
+    subEvents: ["Rapid", "Blitz", "Bullet", "Team Event"]
   },
   {
     id: "table-tennis",
     category: "sports",
     type: "Non-Team Sports",
     title: "Table Tennis",
-    price: 350,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 300,
+    contact: "Vivek: 7993567879",
     desc: "High speed table tennis rallies.",
-    subEvents: ["TBD 1", "TBD 2"]
+    subEvents: ["Men's Singles", "Men's Team Event", "Women's Singles", "Women's Team Event"]
   },
   {
     id: "tennis",
     category: "sports",
     type: "Non-Team Sports",
     title: "Tennis",
-    price: 350,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037 / Mirshad: 7510166801",
+    price: 300,
+    contact: "Abubakar: 7842552193 / Akshay: 7904653955 / Manish: 9573834328",
     desc: "Lawn tennis championships across all categories.",
     subEvents: [
       "Men's Singles",
@@ -544,6 +581,32 @@ export const eventsList = [
       "Women's Singles",
       "Women's Doubles",
       "Mixed Doubles"
+    ]
+  },
+  {
+    id: "gymnasium",
+    category: "sports",
+    type: "Non-Team Sports",
+    title: "Gymnasium (Men's)",
+    price: 200,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037",
+    desc: "Strength events — bench press, squats",
+    subEvents: [
+      { name: "Bench Press", price: 200 },
+      { name: "Squats", price: 200 }
+    ]
+  },
+  {
+    id: "gymnasium",
+    category: "sports",
+    type: "Non-Team Sports",
+    title: "Gymnasium(Men's)",
+    price: 70,
+    contact: "Vinay: 7207867241 / Nikhitha: 9030787037",
+    desc: "Strength events — pull-ups and push-ups.",
+    subEvents: [
+      { name: "Pull-ups", price: 70 },
+      { name: "Push-ups", price: 70 }
     ]
   },
 ];
