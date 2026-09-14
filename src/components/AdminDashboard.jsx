@@ -126,13 +126,13 @@ export default function AdminDashboard() {
   const exportPassesCSV = () => {
     const headers = [
       "Full Name", "Login Email", "WhatsApp Number", "College Name", "Year of Study",
-      "College ID Photo URL", "Selected Passes/Tiers", "Payment Screenshot URL",
+      "College ID Photo URL", "Selected Passes/Tiers", "Payment Screenshot URL", "UTR Number",
       "Delegate ID", "Status", "Submitted At",
     ];
     const rows = filteredPassRows.map((r) => [
       `"${r.full_name || ""}"`, `"${r.email || ""}"`, `"${r.phone || ""}"`, `"${r.college || ""}"`,
       `"${r.year_of_study || ""}"`, `"${r.id_card_url || ""}"`, `"${(r.pass_codes || []).join("; ")}"`,
-      `"${r.payment_screenshot_url || ""}"`, `"${r.delegate_id || ""}"`, `"${r.payment_status || "PENDING"}"`,
+      `"${r.payment_screenshot_url || ""}"`, `"${r.utr_number || ""}"`, `"${r.delegate_id || ""}"`, `"${r.payment_status || "PENDING"}"`,
       `"${new Date(r.created_at).toLocaleString()}"`,
     ]);
     downloadCSV(`spandan_passes_master_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
@@ -156,7 +156,7 @@ export default function AdminDashboard() {
   const exportEventsCSV = () => {
     const headers = [
       "Delegate ID", "Participant Name", "WhatsApp Number", "Event Registered", "Sub Event",
-      "Team Event", "Teammates (Name:ID)", "Payment Screenshot URL", "Status", "Submitted At",
+      "Team Event", "Teammates (Name:ID)", "Payment Screenshot URL", "UTR Number", "Status", "Submitted At",
     ];
     const rows = filteredEventRows.map((r) => {
       const parent = purchaseFor(r.purchase_id);
@@ -165,7 +165,7 @@ export default function AdminDashboard() {
         `"${r.delegate_id || ""}"`, `"${r.participant_name || ""}"`, `"${r.participant_whatsapp || ""}"`,
         `"${r.event_title || ""}"`, `"${r.sub_event || ""}"`, `"${r.is_team_event ? "Yes" : "No"}"`,
         `"${roster.map((m) => `${m.full_name}:${m.delegate_id}`).join("; ")}"`,
-        `"${parent?.payment_screenshot_url || ""}"`, `"${parent?.payment_status || "PENDING"}"`,
+        `"${parent?.payment_screenshot_url || ""}"`, `"${r.utr_number || parent?.utr_number || ""}"`, `"${parent?.payment_status || "PENDING"}"`,
         `"${new Date(r.created_at).toLocaleString()}"`,
       ];
     });
@@ -279,13 +279,14 @@ export default function AdminDashboard() {
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Files</th>
                 <th className="px-4 py-3">Passes / Tiers</th>
+                <th className="px-4 py-3">UTR Number</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filteredPassRows.length === 0 ? (
-                <tr><td colSpan="7" className="text-center py-8 text-slate-500">No pass registrations found.</td></tr>
+                <tr><td colSpan="8" className="text-center py-8 text-slate-500">No pass registrations found.</td></tr>
               ) : (
                 filteredPassRows.map((row) => (
                   <tr key={row.id} className="hover:bg-white/[0.02] transition">
@@ -311,6 +312,13 @@ export default function AdminDashboard() {
                         {(row.pass_codes || []).join(", ")}
                       </span>
                       <span className="text-amber-300 font-bold">₹{row.total_amount || 0}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.utr_number ? (
+                        <span className="font-mono text-parchment-50">{row.utr_number}</span>
+                      ) : (
+                        <span className="text-slate-500 italic">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3"><StatusBadge status={row.payment_status} /></td>
                     <td className="px-4 py-3 text-right space-x-1">
@@ -371,13 +379,14 @@ export default function AdminDashboard() {
                 <th className="px-4 py-3">Event Registered</th>
                 <th className="px-4 py-3">Teammates</th>
                 <th className="px-4 py-3">Receipt</th>
+                <th className="px-4 py-3">UTR Number</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filteredEventRows.length === 0 ? (
-                <tr><td colSpan="8" className="text-center py-8 text-slate-500">No event registrations found.</td></tr>
+                <tr><td colSpan="9" className="text-center py-8 text-slate-500">No event registrations found.</td></tr>
               ) : (
                 filteredEventRows.map((row) => {
                   const parent = purchaseFor(row.purchase_id);
@@ -409,6 +418,13 @@ export default function AdminDashboard() {
                             <a href={parent.payment_screenshot_url} target="_blank" rel="noreferrer" className="text-lantern-300 hover:underline font-semibold">💳 View</a>
                           ) : <span className="text-slate-500 italic">None</span>}
                         </td>
+                        <td className="px-4 py-3">
+                          {row.utr_number || parent?.utr_number ? (
+                            <span className="font-mono text-parchment-50">{row.utr_number || parent?.utr_number}</span>
+                          ) : (
+                            <span className="text-slate-500 italic">—</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3"><StatusBadge status={status} /></td>
                         <td className="px-4 py-3 text-right space-x-1">
                           {parent && (
@@ -421,7 +437,7 @@ export default function AdminDashboard() {
                       </tr>
                       {expandedEventRegId === row.id && (
                         <tr>
-                          <td colSpan="8" className="px-4 py-4 bg-canopy-950/60">
+                          <td colSpan="9" className="px-4 py-4 bg-canopy-950/60">
                             <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Team Roster</p>
                             <div className="space-y-1">
                               {roster.map((m) => (

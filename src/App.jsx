@@ -287,11 +287,15 @@ export default function App() {
       setOwnedPasses([]);
       return;
     }
+    // Events unlock the moment a pass/tier purchase is SUBMITTED, not
+    // only once a committee member approves it — so both APPROVED and
+    // PENDING_VERIFICATION grant access. Only REJECTED locks events
+    // back up (handled implicitly, since rejected rows are excluded here).
     const { data } = await supabase
       .from("purchases")
       .select("pass_codes")
       .eq("user_id", u.id)
-      .eq("payment_status", "APPROVED");
+      .in("payment_status", ["APPROVED", "PENDING_VERIFICATION"]);
     const codes = new Set();
     (data || []).forEach((row) => (row.pass_codes || []).forEach((c) => codes.add(c)));
     setOwnedPasses([...codes]);

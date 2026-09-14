@@ -13,6 +13,11 @@ export const EXTERNAL_FORM_LINKS = {
   begBorrowSteal: "https://docs.google.com/forms/d/1rtnW4f1mt3zZm2KHBnRbKMZgqkDltA85aSCCS0nc8ww/edit",
 };
 
+// UTR / UPI Transaction Reference Number: always exactly 12 numeric
+// digits. Used to validate the compulsory UTR field on every checkout
+// form (Pass Checkout and Event Checkout) before submission.
+export const UTR_REGEX = /^\d{12}$/;
+
 // TODO: replace "#" with the new official brochure's URL once it's ready
 // (e.g. a Google Drive share link, or "/spandan-2026-brochure.pdf" if you
 // add the file itself to the public/ folder). Nothing else needs to
@@ -584,27 +589,21 @@ export const eventsList = [
     ]
   },
   {
+    // Fixed: was previously duplicated as two separate "gymnasium" entries
+    // (same id, slightly different titles) which caused a React key
+    // collision and an accidental duplicate listing. Merged into one
+    // event, exclusively under the "sports" category, with all four
+    // lifts as sub-events (each priced separately).
     id: "gymnasium",
     category: "sports",
     type: "Non-Team Sports",
     title: "Gymnasium (Men's)",
     price: 200,
     contact: "Vinay: 7207867241 / Nikhitha: 9030787037",
-    desc: "Strength events — bench press, squats",
+    desc: "Strength events — bench press, squats, pull-ups, and push-ups.",
     subEvents: [
       { name: "Bench Press", price: 200 },
-      { name: "Squats", price: 200 }
-    ]
-  },
-  {
-    id: "gymnasium",
-    category: "sports",
-    type: "Non-Team Sports",
-    title: "Gymnasium(Men's)",
-    price: 70,
-    contact: "Vinay: 7207867241 / Nikhitha: 9030787037",
-    desc: "Strength events — pull-ups and push-ups.",
-    subEvents: [
+      { name: "Squats", price: 200 },
       { name: "Pull-ups", price: 70 },
       { name: "Push-ups", price: 70 }
     ]

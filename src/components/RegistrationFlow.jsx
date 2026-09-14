@@ -13,6 +13,7 @@ import {
   isTeamEvent,
   subEventLabel,
   FORM_ONLY_EVENT_IDS,
+  UTR_REGEX,
 } from "../data/festData";
 
 const CheckIcon = () => (
@@ -36,6 +37,64 @@ const LockBadge = ({ label }) => (
 );
 
 const onlyDigits = (val, max = 10) => val.replace(/\D/g, "").slice(0, max);
+
+// Compulsory 12-digit UTR / UPI Transaction Reference Number input,
+// shared by both the Pass Checkout and Event Checkout forms.
+const UtrInput = ({ value, onChange }) => {
+  const isValid = UTR_REGEX.test(value);
+  const showError = value.length > 0 && !isValid;
+  return (
+    <div>
+      <label className="text-xs text-parchment-100/70 block mb-1">
+        UTR / UPI Transaction Reference Number <span className="text-red-400">*</span>
+      </label>
+      <input
+        placeholder="12-digit UTR number"
+        value={value}
+        maxLength={12}
+        inputMode="numeric"
+        onChange={(e) => onChange(onlyDigits(e.target.value, 12))}
+        className={`w-full px-4 py-3 rounded-xl bg-canopy-950/50 border text-parchment-50 text-sm focus:outline-none ${
+          isValid ? "border-emerald-500/50" : showError ? "border-red-500/50" : "border-lantern-500/15"
+        }`}
+      />
+      {showError && <p className="text-[11px] text-red-400 mt-1">UTR must be exactly 12 digits.</p>}
+      {isValid && <p className="text-[11px] text-emerald-400 mt-1">✓ Looks good</p>}
+      <p className="text-[10px] text-parchment-100/50 mt-1">
+        Found on your UPI app's payment confirmation screen or bank statement, right after you pay.
+      </p>
+    </div>
+  );
+};
+
+// Renders the UPI payment QR code reliably across every checkout —
+// falls back to plain text (with the UPI ID, if known) if the image
+// asset ever fails to load, instead of leaving a broken/hidden image.
+const PaymentQR = ({ upiId }) => {
+  const [imgFailed, setImgFailed] = useState(false);
+  return (
+    <div className="p-4 rounded-2xl bg-canopy-950/60 border border-lantern-500/20 flex flex-col items-center gap-2">
+      <p className="text-xs font-semibold text-parchment-50">Scan &amp; Pay via UPI</p>
+      {!imgFailed ? (
+        <img
+          src="/upi-qr.png"
+          alt="Spandan 2026 UPI Payment QR Code"
+          onError={() => setImgFailed(true)}
+          className="w-48 h-48 object-contain rounded-xl bg-white p-2"
+        />
+      ) : (
+        <div className="w-48 h-48 flex items-center justify-center rounded-xl bg-white/5 border border-dashed border-lantern-500/30 text-center p-3">
+          <p className="text-[11px] text-parchment-100/70">
+            QR code image couldn't load.{upiId ? ` Pay directly to UPI ID: ${upiId}` : " Please contact the committee for the UPI ID."}
+          </p>
+        </div>
+      )}
+      <p className="text-[10px] text-parchment-100/50 text-center">
+        After paying, upload your screenshot and enter the UTR number below.
+      </p>
+    </div>
+  );
+};
 
 const statusBanner = {
   PENDING_VERIFICATION: { text: "Verification Pending", cls: "bg-amber-500/15 text-amber-300 border-amber-500/40" },
@@ -129,6 +188,7 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
   const [formData, setFormData] = useState({ fullName: "", phone: "", college: "", yearOfStudy: "1st Year" });
   const [idCardFile, setIdCardFile] = useState(null);
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
+  const [utrNumber, setUtrNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [result, setResult] = useState(null);
@@ -161,6 +221,7 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
     if (!formData.fullName.trim() || !formData.college.trim()) return setErrorMsg("Please fill in your name and college.");
     if (!idCardFile) return setErrorMsg("Please upload a photo of your College ID card.");
     if (!paymentScreenshot) return setErrorMsg("Please upload your payment screenshot.");
+    if (!UTR_REGEX.test(utrNumber)) return setErrorMsg("Please enter a valid 12-digit UTR / UPI Transaction Reference Number.");
 
     setSubmitting(true);
     let step_ = "uploading your College ID card";
@@ -196,6 +257,7 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
           year_of_study: formData.yearOfStudy,
           id_card_url: idUrlData.publicUrl,
           payment_screenshot_url: payUrlData.publicUrl,
+          utr_number: utrNumber,
           base_amount: passesAmount,
           events_amount: 0,
           total_amount: passesAmount,
@@ -376,6 +438,13 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
             </select>
           </div>
 
+          <div className="bg-canopy-950/60 rounded-2xl p-4 flex justify-between items-center text-sm font-bold">
+            <span className="text-parchment-50">Total Payable</span>
+            <span className="text-lantern-300">₹{passesAmount}</span>
+          </div>
+
+          <PaymentQR />
+
           <div className="space-y-3">
             <div>
               <label className="text-xs text-parchment-100/70 block mb-1">College ID Card Photo</label>
@@ -395,11 +464,7 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
                 className="text-xs text-parchment-100/70 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-lantern-500/20 file:text-lantern-300 file:text-xs w-full"
               />
             </div>
-          </div>
-
-          <div className="bg-canopy-950/60 rounded-2xl p-4 flex justify-between items-center text-sm font-bold">
-            <span className="text-parchment-50">Total Payable</span>
-            <span className="text-lantern-300">₹{passesAmount}</span>
+            <UtrInput value={utrNumber} onChange={setUtrNumber} />
           </div>
 
           <div className="flex justify-between">
@@ -435,6 +500,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
   const [participantName, setParticipantName] = useState(myDelegateIds[0]?.full_name || "");
   const [participantWhatsapp, setParticipantWhatsapp] = useState(myDelegateIds[0]?.phone || "");
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
+  const [utrNumber, setUtrNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [result, setResult] = useState(null);
@@ -456,7 +522,11 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
     return list;
   }, [selectedCategory, searchQuery]);
 
-  const eventsAmount = useMemo(() => cartEvents.reduce((sum, e) => sum + (e.price || 0), 0), [cartEvents]);
+  // For team events, the price is per-person: perPersonPrice × number of
+  // members currently in the roster. Non-team events keep a flat price.
+  const entryPrice = (e) => (e.isTeam ? e.perPersonPrice * Math.max(e.members.length, 1) : e.price);
+
+  const eventsAmount = useMemo(() => cartEvents.reduce((sum, e) => sum + (entryPrice(e) || 0), 0), [cartEvents]);
 
   const addEventToCart = (event, subEvent = null) => {
     const subLabel = subEvent ? subEventLabel(subEvent) : null;
@@ -464,18 +534,20 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
     if (cartEvents.some((e) => e.key === key)) return;
     const access = getEventAccess(event, ownedPasses, subEvent);
     const team = isTeamEvent(event);
-    const minSize = event.minTeamSize || (team ? 2 : 0);
+    // This is only a starting suggestion — team rosters are fully
+    // flexible now, members can be freely added or removed, and the
+    // price recalculates live as perPersonPrice × current roster size.
+    const suggestedSize = event.minTeamSize || (team ? 2 : 0);
     const entry = {
       key,
       eventId: event.id,
       title: subLabel ? `${event.title} — ${subLabel}` : event.title,
       subEvent: subLabel,
       price: access.price,
+      perPersonPrice: access.price,
       isTeam: team,
-      minTeamSize: minSize,
-      // Pre-render the mandatory minimum number of member rows — these
-      // can't be removed below the minimum, only added to beyond it.
-      members: team ? Array.from({ length: minSize }, () => ({ name: "", whatsapp: "", delegateId: "" })) : [],
+      suggestedTeamSize: suggestedSize,
+      members: team ? Array.from({ length: suggestedSize || 1 }, () => ({ name: "", whatsapp: "", delegateId: "" })) : [],
     };
     setCartEvents((prev) => [...prev, entry]);
     if (team) setExpandedTeamKey(key);
@@ -493,8 +565,9 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
     setCartEvents((prev) =>
       prev.map((e) => {
         if (e.key !== key) return e;
-        // Mandatory minimum rows can't be removed, only optional extras beyond it
-        if (idx < e.minTeamSize) return e;
+        // No more hardcoded minimum — any row can be removed, down to a
+        // single remaining member (a team can't register with zero people).
+        if (e.members.length <= 1) return e;
         return { ...e, members: e.members.filter((_, i) => i !== idx) };
       })
     );
@@ -553,11 +626,12 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
     const cleanPhone = onlyDigits(participantWhatsapp);
     if (cleanPhone.length !== 10) return setErrorMsg("Please enter a valid 10-digit WhatsApp number.");
     if (!paymentScreenshot) return setErrorMsg("Please upload your payment screenshot.");
+    if (!UTR_REGEX.test(utrNumber)) return setErrorMsg("Please enter a valid 12-digit UTR / UPI Transaction Reference Number.");
 
     for (const e of cartEvents) {
       if (!e.isTeam) continue;
-      if (e.members.length < e.minTeamSize) {
-        return setErrorMsg(`${e.title} requires at least ${e.minTeamSize} team members.`);
+      if (e.members.length < 1) {
+        return setErrorMsg(`${e.title} needs at least one team member.`);
       }
       for (const m of e.members) {
         if (!m.name || !m.whatsapp || !m.delegateId) return setErrorMsg(`Please complete every team member's details for ${e.title}.`);
@@ -589,6 +663,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
             college: myDelegateIds[0]?.college || "",
             id_card_url: null,
             payment_screenshot_url: payUrlData.publicUrl,
+            utr_number: utrNumber,
             base_amount: 0,
             events_amount: eventsAmount,
             total_amount: eventsAmount,
@@ -609,12 +684,13 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
               event_id: e.eventId,
               event_title: e.title,
               sub_event: e.subEvent,
-              price: e.price,
+              price: entryPrice(e),
               is_team_event: e.isTeam,
               team_size: e.isTeam ? e.members.length : null,
               delegate_id: delegateId.trim().toUpperCase(),
               participant_name: participantName,
               participant_whatsapp: cleanPhone,
+              utr_number: utrNumber,
             },
           ])
           .select()
@@ -800,7 +876,8 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                         {ev.category.replace("-", " ")}
                       </span>
                       <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                        {!isFormOnly && (access.price > 0 ? `₹${access.price}` : "Free")}
+                        {!isFormOnly &&
+                          (access.price > 0 ? `₹${access.price}${isTeamEvent(ev) ? "/person" : ""}` : "Free")}
                       </span>
                     </div>
                     <h3 className="text-base font-bold text-parchment-50">{ev.title}</h3>
@@ -888,7 +965,14 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                       {e.isTeam && <span className="text-[10px] text-lantern-300 ml-2">TEAM EVENT</span>}
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-lantern-300 font-bold">{e.price > 0 ? `₹${e.price}` : "Free"}</span>
+                      <span className="text-lantern-300 font-bold">
+                        {entryPrice(e) > 0 ? `₹${entryPrice(e)}` : "Free"}
+                        {e.isTeam && e.perPersonPrice > 0 && (
+                          <span className="text-[10px] text-parchment-100/50 font-normal ml-1">
+                            (₹{e.perPersonPrice} × {Math.max(e.members.length, 1)})
+                          </span>
+                        )}
+                      </span>
                       <button onClick={() => removeEventFromCart(e.key)} className="text-red-400 text-xs hover:underline">
                         Remove
                       </button>
@@ -898,15 +982,16 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                   {e.isTeam && (
                     <div className="mt-3 pl-2 border-l-2 border-lantern-500/20 space-y-2">
                       <p className="text-[10px] text-parchment-100/60 uppercase tracking-wider">
-                        Team Roster ({e.members.length}) — minimum {e.minTeamSize} required
+                        Team Roster ({e.members.length}) — add as many members as your team needs
+                        {e.suggestedTeamSize ? ` (suggested: ${e.suggestedTeamSize})` : ""}
                       </p>
                       {e.members.map((m, idx) => {
-                        const mandatory = idx < e.minTeamSize;
+                        const canRemove = e.members.length > 1;
                         return (
                           <div key={idx} className="space-y-1">
                             <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1.4fr_auto_auto] gap-2 items-center">
                               <input
-                                placeholder={`Member ${idx + 1} Name${mandatory ? " *" : ""}`}
+                                placeholder={`Member ${idx + 1} Name`}
                                 value={m.name || ""}
                                 onChange={(ev3) => updateTeamMember(e.key, idx, "name", ev3.target.value)}
                                 className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
@@ -942,11 +1027,11 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                               </button>
                               <button
                                 onClick={() => removeMemberRow(e.key, idx)}
-                                disabled={mandatory}
-                                title={mandatory ? `First ${e.minTeamSize} members are mandatory for this event` : "Remove"}
+                                disabled={!canRemove}
+                                title={!canRemove ? "A team needs at least one member" : "Remove"}
                                 className="text-red-400 text-xs hover:underline justify-self-start sm:justify-self-center disabled:text-slate-600 disabled:no-underline disabled:cursor-not-allowed"
                               >
-                                {mandatory ? "Required" : "Remove"}
+                                Remove
                               </button>
                             </div>
                             {m.validation === "not_found" && (
@@ -959,7 +1044,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                         );
                       })}
                       <button onClick={() => addMemberRow(e.key)} className="text-lantern-300 text-xs font-semibold hover:underline">
-                        + Add Member
+                        + Add Team Member
                       </button>
                     </div>
                   )}
@@ -1030,6 +1115,13 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
             />
           </div>
 
+          <div className="bg-canopy-950/60 rounded-2xl p-4 flex justify-between items-center text-sm font-bold">
+            <span className="text-parchment-50">Total Payable ({cartEvents.length} events)</span>
+            <span className="text-lantern-300">₹{eventsAmount}</span>
+          </div>
+
+          <PaymentQR />
+
           <div>
             <label className="text-xs text-parchment-100/70 block mb-1">Payment Screenshot (UPI)</label>
             <input
@@ -1040,10 +1132,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
             />
           </div>
 
-          <div className="bg-canopy-950/60 rounded-2xl p-4 flex justify-between items-center text-sm font-bold">
-            <span className="text-parchment-50">Total Payable ({cartEvents.length} events)</span>
-            <span className="text-lantern-300">₹{eventsAmount}</span>
-          </div>
+          <UtrInput value={utrNumber} onChange={setUtrNumber} />
 
           <div className="flex justify-between">
             <button onClick={() => setSubStep("browse")} className="px-6 py-3 rounded-full bg-white/10 text-parchment-50 text-sm font-bold">
