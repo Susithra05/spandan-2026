@@ -21,6 +21,8 @@ const statusLabel = {
   PENDING_VERIFICATION: "⏳ Verification Pending",
 };
 
+const YEAR_OPTIONS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "Intern", "PG/Resident"];
+
 function CopyButton({ value }) {
   const [copied, setCopied] = useState(false);
   const doCopy = async () => {
@@ -61,42 +63,180 @@ function CopyButton({ value }) {
   );
 }
 
+// Inline edit form for one purchase row's editable identity fields.
+// Used both for a person's own card and, for Group Leaders, for each
+// of their group members. The actual permission check (own row vs.
+// leader-of-that-group) is enforced server-side by RLS — this
+// component doesn't need to know which case it's in.
+function EditableIdentityFields({ purchase, onSaved }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    full_name: purchase.full_name || "",
+    phone: purchase.phone || "",
+    college: purchase.college || "",
+    year_of_study: purchase.year_of_study || YEAR_OPTIONS[0],
+  });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [savedNotice, setSavedNotice] = useState("");
+
+  const startEdit = () => {
+    setForm({
+      full_name: purchase.full_name || "",
+      phone: purchase.phone || "",
+      college: purchase.college || "",
+      year_of_study: purchase.year_of_study || YEAR_OPTIONS[0],
+    });
+    setSaveError("");
+    setSavedNotice("");
+    setEditing(true);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setSaveError("");
+    const wasApproved = purchase.payment_status === "APPROVED";
+    // Only ever sends these four columns — the database itself only
+    // grants UPDATE on these (see migration_v6.sql), so this can't be
+    // abused to touch payment_status, delegate_id, or amounts even if
+    // someone tampered with the client.
+    const { error } = await supabase
+      .from("purchases")
+      .update({
+        full_name: form.full_name.trim(),
+        phone: form.phone.replace(/\D/g, "").slice(0, 10),
+        college: form.college.trim(),
+        year_of_study: form.year_of_study,
+      })
+      .eq("id", purchase.id);
+    setSaving(false);
+    if (error) {
+      setSaveError(error.message);
+      return;
+    }
+    setEditing(false);
+    if (wasApproved) {
+      setSavedNotice("Saved — since this was already Approved, it's back to Pending Verification until the committee re-checks it.");
+    } else {
+      setSavedNotice("Saved.");
+    }
+    if (onSaved) onSaved();
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-start justify-between gap-3">
+        <div className="text-xs text-parchment-100/60 space-y-0.5">
+          <p>{purchase.full_name}</p>
+          <p>
+            {purchase.phone} · {purchase.college} {purchase.year_of_study ? `· ${purchase.year_of_study}` : ""}
+          </p>
+          {savedNotice && <p className="text-amber-300">{savedNotice}</p>}
+        </div>
+        <button onClick={startEdit} className="text-lantern-300 text-[11px] font-semibold hover:underline shrink-0">
+          Edit
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {saveError && <p className="text-[11px] text-red-400">{saveError}</p>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <input
+          value={form.full_name}
+          onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
+          placeholder="Full Name"
+          className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+        />
+        <input
+          value={form.phone}
+          maxLength={10}
+          inputMode="numeric"
+          onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+          placeholder="Phone"
+          className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+        />
+        <input
+          value={form.college}
+          onChange={(e) => setForm((f) => ({ ...f, college: e.target.value }))}
+          placeholder="College"
+          className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+        />
+        <select
+          value={form.year_of_study}
+          onChange={(e) => setForm((f) => ({ ...f, year_of_study: e.target.value }))}
+          className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+        >
+          {YEAR_OPTIONS.map((y) => (
+            <option key={y}>{y}</option>
+          ))}
+        </select>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={() => setEditing(false)} disabled={saving} className="px-4 py-1.5 rounded-full bg-white/10 text-parchment-50 text-[11px] font-bold">
+          Cancel
+        </button>
+        <button onClick={save} disabled={saving} className="px-4 py-1.5 rounded-full bg-lantern-400 text-canopy-950 text-[11px] font-bold disabled:opacity-50">
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Profile({ user, setActiveTab }) {
   const [purchases, setPurchases] = useState([]);
   const [events, setEvents] = useState([]);
+  const [myGroups, setMyGroups] = useState([]);
+  const [groupMembers, setGroupMembers] = useState({}); // { [groupId]: purchase[] }
   const [loading, setLoading] = useState(true);
+
+  const refresh = async () => {
+    setLoading(true);
+    const { data: p } = await supabase.from("purchases").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+    setPurchases(p || []);
+
+    if (p && p.length > 0) {
+      const { data: ev } = await supabase
+        .from("event_registrations")
+        .select("*")
+        .in("purchase_id", p.map((row) => row.id))
+        .order("created_at", { ascending: false });
+      setEvents(ev || []);
+    } else {
+      setEvents([]);
+    }
+
+    const { data: groups } = await supabase.from("groups").select("*").eq("leader_user_id", user.id).order("created_at", { ascending: false });
+    setMyGroups(groups || []);
+
+    if (groups && groups.length > 0) {
+      const membersByGroup = {};
+      for (const g of groups) {
+        const { data: members } = await supabase.from("purchases").select("*").eq("group_id", g.id).order("delegate_id");
+        membersByGroup[g.id] = members || [];
+      }
+      setGroupMembers(membersByGroup);
+    } else {
+      setGroupMembers({});
+    }
+
+    setLoading(false);
+  };
 
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      setLoading(true);
-      const { data: p } = await supabase
-        .from("purchases")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      setPurchases(p || []);
-
-      if (p && p.length > 0) {
-        const { data: ev } = await supabase
-          .from("event_registrations")
-          .select("*")
-          .in("purchase_id", p.map((row) => row.id))
-          .order("created_at", { ascending: false });
-        setEvents(ev || []);
-      }
-      setLoading(false);
-    })();
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   if (!user) {
     return (
       <div className="glow-card p-10 rounded-3xl text-center space-y-4 max-w-lg mx-auto">
         <p className="text-parchment-100/80 text-sm">Please log in to view your profile.</p>
-        <button
-          onClick={() => setActiveTab("auth")}
-          className="px-6 py-2.5 rounded-full bg-lantern-400 text-canopy-950 font-bold text-sm"
-        >
+        <button onClick={() => setActiveTab("auth")} className="px-6 py-2.5 rounded-full bg-lantern-400 text-canopy-950 font-bold text-sm">
           Login / Sign Up
         </button>
       </div>
@@ -131,31 +271,60 @@ export default function Profile({ user, setActiveTab }) {
                 <p className="text-3xl font-mono font-black text-parchment-50 tracking-wider">{activeDelegateId}</p>
                 <CopyButton value={activeDelegateId} />
               </div>
-              <div className="mt-4 pt-4 border-t border-white/15 flex items-center justify-between text-xs">
-                <div>
+              <div className="mt-4 pt-4 border-t border-white/15 flex items-center justify-between text-xs gap-2">
+                <div className="flex-1">
                   <p className="text-parchment-100/60">{primaryPurchase?.full_name}</p>
                   <p className="text-parchment-100/60">{primaryPurchase?.college}</p>
                 </div>
                 <span
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold border shrink-0 ${
                     statusStyle[primaryPurchase?.payment_status] || statusStyle.PENDING_VERIFICATION
                   }`}
                 >
                   {statusLabel[primaryPurchase?.payment_status] || statusLabel.PENDING_VERIFICATION}
                 </span>
               </div>
+              <div className="mt-4 pt-4 border-t border-white/15">
+                <EditableIdentityFields purchase={primaryPurchase} onSaved={refresh} />
+              </div>
             </div>
           ) : (
             <div className="glow-card p-8 rounded-3xl text-center space-y-3 max-w-md mx-auto">
-              <p className="text-sm text-parchment-100/70">
-                You haven't registered for a Delegate Tier or Club Pass yet.
-              </p>
-              <button
-                onClick={() => setActiveTab("registration")}
-                className="px-6 py-2.5 rounded-full bg-lantern-400 text-canopy-950 font-bold text-sm"
-              >
+              <p className="text-sm text-parchment-100/70">You haven't registered for a Delegate Tier or Club Pass yet.</p>
+              <button onClick={() => setActiveTab("registration")} className="px-6 py-2.5 rounded-full bg-lantern-400 text-canopy-950 font-bold text-sm">
                 Register Now
               </button>
+            </div>
+          )}
+
+          {/* Group Leader panel */}
+          {myGroups.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-display font-bold text-parchment-50">👑 Your Group{myGroups.length > 1 ? "s" : ""}</h3>
+              {myGroups.map((g) => (
+                <div key={g.id} className="glow-card p-5 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="font-mono font-bold text-lantern-300">{g.group_code}</p>
+                    <span className="text-[10px] text-parchment-100/50">{(groupMembers[g.id] || []).length} member(s)</span>
+                  </div>
+                  <div className="space-y-3 divide-y divide-white/5">
+                    {(groupMembers[g.id] || []).map((m) => (
+                      <div key={m.id} className="pt-3 first:pt-0 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <span className="font-mono text-parchment-50">{m.delegate_id}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusStyle[m.payment_status] || statusStyle.PENDING_VERIFICATION}`}>
+                            {statusLabel[m.payment_status] || statusLabel.PENDING_VERIFICATION}
+                          </span>
+                        </div>
+                        <EditableIdentityFields purchase={m} onSaved={refresh} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <p className="text-[11px] text-parchment-100/50 text-center">
+                To register events on behalf of a member, go to Registration → 2. Register for Events → switch to "Group ID".
+              </p>
             </div>
           )}
 

@@ -1,13 +1,13 @@
 // src/lib/idGenerator.js
 //
-// Builds the 7-character Delegate ID for a checkout, then asks the
+// Builds the 8-character Delegate ID for a checkout, then asks the
 // database to atomically hand out the next number for that prefix
 // (see supabase/migration.sql -> generate_delegate_id()).
 //
 // Examples this produces:
-//   Tier One (Red Queen) alone         -> "DT1" + 4 digits  -> DT10019
-//   Cult Pass alone                    -> "CP"  + 5 digits  -> CP00001
-//   Cult Pass + Sports Pass together   -> "CSP" + 4 digits  -> CSP1025
+//   Tier One (Red Queen) alone         -> "DT1" + 5 digits  -> DT100019
+//   Cult Pass alone                    -> "CP"  + 6 digits  -> CP000001
+//   Cult Pass + Sports Pass together   -> "CSP" + 5 digits  -> CSP01025
 //
 // RULES (documented so they're easy to adjust later):
 // 1. If a Delegate Tier is in the checkout, it always determines the
@@ -16,10 +16,10 @@
 //    so it takes priority as the person's primary identity.
 // 2. Otherwise, take the set of club passes purchased *in this same
 //    checkout*, map each to a single letter, sort them into a fixed
-//    priority order, and join. One pass -> 2-letter prefix + 5 digits
-//    (e.g. "CP" + 00001). Two or more -> first two letters + "P" for
-//    "Pass" + 4 digits (e.g. "CSP" + 1025). This caps the prefix at
-//    3 characters so the ID always stays exactly 7 characters, per
+//    priority order, and join. One pass -> 2-letter prefix + 6 digits
+//    (e.g. "CP" + 000001). Two or more -> first two letters + "P" for
+//    "Pass" + 5 digits (e.g. "CSP" + 01025). This caps the prefix at
+//    3 characters so the ID always stays exactly 8 characters, per
 //    spec. If three or more distinct pass letters are ever bought in
 //    one checkout, they collapse onto the same 2-letter+P prefix as
 //    any other pair starting with the same two (a documented, rare
@@ -27,6 +27,12 @@
 //    pass letter).
 // 3. The Premium Pass (Lit & Quiz bundle) is treated as if the user
 //    bought Lit + Quiz together, i.e. it maps to letters {L, Q}.
+//
+// GROUP DELEGATE IDs — for members added to a checkout by a Group
+// Leader, the base 8-character ID above is prefixed with a 4-character
+// Group Code + hyphen, e.g. "G001-SP000001" (13 characters total).
+// The Group Code itself is a separate atomic sequence (see
+// generateGroupCode() below), one per group, not per member.
 
 import { supabase } from "./supabase";
 
@@ -47,15 +53,35 @@ const CLUB_LETTERS = {
 // Fixed sort order used when combining multiple club-pass letters
 const CLUB_PRIORITY = ["C", "S", "L", "Q"];
 
+// Individual (non-group) IDs are always exactly 8 characters.
+// Group IDs are always exactly 13: 4-char group code + "-" + 8-char ID.
+export const DELEGATE_ID_LENGTH = 8;
+export const GROUP_PREFIX_LENGTH = 4; // e.g. "G001"
+export const GROUP_DELEGATE_ID_LENGTH = GROUP_PREFIX_LENGTH + 1 + DELEGATE_ID_LENGTH; // 13
+
+export const INDIVIDUAL_ID_REGEX = /^[A-Z0-9]{8}$/;
+export const GROUP_ID_REGEX = /^[A-Z][0-9]{3}-[A-Z0-9]{8}$/; // e.g. G001-SP000001
+// Accepts either shape — used wherever a Delegate ID field doesn't yet
+// know if it's being handed an individual or a group ID.
+export const ANY_DELEGATE_ID_REGEX = /^([A-Z0-9]{8}|[A-Z][0-9]{3}-[A-Z0-9]{8})$/;
+
+export function isGroupDelegateId(value = "") {
+  return value.includes("-");
+}
+
+export function normalizeDelegateId(value = "") {
+  return value.trim().toUpperCase();
+}
+
 /**
  * Given the set of pass codes purchased in one checkout, work out
  * the ID prefix and how many digits the numeric suffix should have
- * so prefix.length + digits === 7 always.
+ * so prefix.length + digits === 8 always.
  */
 export function computeIdPrefix(passCodes = []) {
   const tierCode = passCodes.find((c) => TIER_PREFIX[c]);
   if (tierCode) {
-    return { prefix: TIER_PREFIX[tierCode], digits: 4 };
+    return { prefix: TIER_PREFIX[tierCode], digits: 5 };
   }
 
   const letters = new Set();
@@ -68,18 +94,18 @@ export function computeIdPrefix(passCodes = []) {
 
   if (sorted.length === 0) return null; // no pass in this checkout -> no ID
   if (sorted.length === 1) {
-    return { prefix: `${sorted[0]}P`, digits: 5 };
+    return { prefix: `${sorted[0]}P`, digits: 6 };
   }
-  return { prefix: `${sorted.slice(0, 2).join("")}P`, digits: 4 };
+  return { prefix: `${sorted.slice(0, 2).join("")}P`, digits: 5 };
 }
 
 /**
- * Calls the DB to atomically reserve and return the next Delegate ID
- * for this checkout's pass combination. Returns null if the checkout
- * has no pass at all (events-only checkout using a pass from an
- * earlier purchase doesn't mint a new ID).
+ * Calls the DB to atomically reserve and return the next base
+ * (non-group) Delegate ID for this checkout's pass combination.
+ * Returns null if the checkout has no pass at all (events-only
+ * checkout using a pass from an earlier purchase doesn't mint a new ID).
  */
-export async function generateDelegateId(passCodes = []) {
+export async function generateBaseDelegateId(passCodes = []) {
   const computed = computeIdPrefix(passCodes);
   if (!computed) return null;
 
@@ -90,4 +116,26 @@ export async function generateDelegateId(passCodes = []) {
 
   if (error) throw error;
   return data;
+}
+
+// Back-compat alias — existing call sites (individual Pass Checkout)
+// keep working unchanged.
+export const generateDelegateId = generateBaseDelegateId;
+
+/**
+ * Atomically reserves a new 4-character Group Code (e.g. "G001") from
+ * its own counter sequence. One call per group, not per member — every
+ * member's ID is then this code + "-" + their own base ID.
+ */
+export async function generateGroupCode() {
+  const { data, error } = await supabase.rpc("generate_group_code");
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Builds the full 13-character Group Delegate ID for one member.
+ */
+export function buildGroupDelegateId(groupCode, baseId) {
+  return `${groupCode}-${baseId}`;
 }

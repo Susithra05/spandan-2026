@@ -87,7 +87,7 @@ export default function Footer({ setActiveTab }) {
               <a
                 href={`mailto:${festDetails.instagram}@jipmer.edu.in`}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="hover:text-lantern-200 transition"
               >
                 spandan2026@jipmer.edu.in
@@ -98,7 +98,7 @@ export default function Footer({ setActiveTab }) {
               <a
                 href="https://wa.me/918510107650"
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="hover:text-lantern-200 transition"
               >
                 +91 85101 07650 (President)

@@ -1,0 +1,3 @@
+ALTER TABLE registrations 
+ADD COLUMN IF NOT EXISTS utr_number text,
+ADD COLUMN IF NOT EXISTS payment_status text DEFAULT 'PENDING_VERIFICATION';

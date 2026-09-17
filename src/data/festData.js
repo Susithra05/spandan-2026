@@ -18,11 +18,15 @@ export const EXTERNAL_FORM_LINKS = {
 // form (Pass Checkout and Event Checkout) before submission.
 export const UTR_REGEX = /^\d{12}$/;
 
-// TODO: replace "#" with the new official brochure's URL once it's ready
-// (e.g. a Google Drive share link, or "/spandan-2026-brochure.pdf" if you
-// add the file itself to the public/ folder). Nothing else needs to
-// change — the "View Brochure" button on the Home page reads from here.
-export const BROCHURE_URL = "#";
+// The "View Brochure" button on the Home page reads from here — swap
+// this single constant if the brochure link ever needs to change.
+export const BROCHURE_URL = "https://drive.google.com/file/d/1yfmSD6EkU26QryuHiFRCuO6wwK3P15Uh/view?usp=sharing";
+
+// UPI payment details shown under the QR code on both checkout screens
+// (Pass Checkout and Event Checkout). Single source of truth so the
+// committee only ever has to update it in one place.
+export const UPI_ID = "9442172827@sbi";
+export const UPI_MERCHANT_NAME = "DIRECTOR ACCOUNTS OFFICER JIPMER RECEIPTS";
 
 // Rendered as extra tabs in the main domain selection bar, alongside
 // the competitive-event categories. Never pass-gated — each links out

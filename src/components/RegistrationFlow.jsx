@@ -1,7 +1,8 @@
 // src/components/RegistrationFlow.jsx
 import React, { useState, useMemo, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { generateDelegateId } from "../lib/idGenerator";
+import { generateDelegateId, generateGroupCode, buildGroupDelegateId, normalizeDelegateId, INDIVIDUAL_ID_REGEX, GROUP_ID_REGEX } from "../lib/idGenerator";
+import { provisionGroupMember, sendNotification } from "../lib/serverApi";
 import {
   tiers,
   clubPasses,
@@ -14,6 +15,8 @@ import {
   subEventLabel,
   FORM_ONLY_EVENT_IDS,
   UTR_REGEX,
+  UPI_ID,
+  UPI_MERCHANT_NAME,
 } from "../data/festData";
 
 const CheckIcon = () => (
@@ -37,6 +40,20 @@ const LockBadge = ({ label }) => (
 );
 
 const onlyDigits = (val, max = 10) => val.replace(/\D/g, "").slice(0, max);
+
+// Shared by PassCheckout (buying for yourself) and GroupPurchaseCheckout
+// (a Group Leader buying the same pass bundle for N people) so pricing
+// logic only lives in one place.
+const computePassesAmount = (cartPasses) => {
+  let total = 0;
+  const tierCode = cartPasses.find((c) => tiers.find((t) => t.id === c));
+  if (tierCode) total += tiers.find((t) => t.id === tierCode)?.price || 0;
+  cartPasses.forEach((code) => {
+    const club = clubPasses.find((p) => p.id === code);
+    if (club) total += club.price;
+  });
+  return total;
+};
 
 // Compulsory 12-digit UTR / UPI Transaction Reference Number input,
 // shared by both the Pass Checkout and Event Checkout forms.
@@ -67,13 +84,48 @@ const UtrInput = ({ value, onChange }) => {
   );
 };
 
+// Small "📋 Copy" chip, reused for the UPI ID (here) and for every
+// field on the Review Details modal below.
+const CopyChip = ({ value, label = "value" }) => {
+  const [copied, setCopied] = useState(false);
+  const doCopy = async (ev) => {
+    ev?.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // Fallback for older / permission-denied browsers
+      const el = document.createElement("textarea");
+      el.value = value;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  };
+  return (
+    <button
+      type="button"
+      onClick={doCopy}
+      title={`Copy ${label}`}
+      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-parchment-50 text-[10px] font-bold transition shrink-0"
+    >
+      {copied ? "✓ Copied" : "📋 Copy"}
+    </button>
+  );
+};
+
 // Renders the UPI payment QR code reliably across every checkout —
 // falls back to plain text (with the UPI ID, if known) if the image
 // asset ever fails to load, instead of leaving a broken/hidden image.
-const PaymentQR = ({ upiId }) => {
+// Below the QR, always shows the UPI ID (with a copy button) and the
+// registered merchant name, so people can pay manually if scanning
+// isn't an option.
+const PaymentQR = ({ upiId = UPI_ID, merchantName = UPI_MERCHANT_NAME }) => {
   const [imgFailed, setImgFailed] = useState(false);
   return (
-    <div className="p-4 rounded-2xl bg-canopy-950/60 border border-lantern-500/20 flex flex-col items-center gap-2">
+    <div className="p-4 rounded-2xl bg-canopy-950/60 border border-lantern-500/20 flex flex-col items-center gap-3">
       <p className="text-xs font-semibold text-parchment-50">Scan &amp; Pay via UPI</p>
       {!imgFailed ? (
         <img
@@ -89,12 +141,124 @@ const PaymentQR = ({ upiId }) => {
           </p>
         </div>
       )}
+
+      <div className="w-full space-y-2 pt-2 border-t border-white/10">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-parchment-100/50 shrink-0">UPI ID</span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-mono font-semibold text-parchment-50 text-xs truncate">{upiId}</span>
+            <CopyChip value={upiId} label="UPI ID" />
+          </div>
+        </div>
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-parchment-100/50 shrink-0 mt-0.5">Merchant</span>
+          <span className="font-semibold text-parchment-50 text-xs text-right leading-tight">{merchantName}</span>
+        </div>
+      </div>
+
       <p className="text-[10px] text-parchment-100/50 text-center">
         After paying, upload your screenshot and enter the UTR number below.
       </p>
     </div>
   );
 };
+
+// ------------------------------------------------------------------
+// REVIEW DETAILS MODAL — shown right before final submission on both
+// checkout flows. Lets the person double-check every field, the
+// attached screenshot(s), and the UTR before it's written to the
+// database. "Go Back & Edit" just closes the overlay (the form behind
+// it keeps whatever was typed); "Confirm & Submit" runs the real
+// submit handler.
+// ------------------------------------------------------------------
+function FilePreview({ file, label }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    if (!file) {
+      setUrl(null);
+      return;
+    }
+    const objUrl = URL.createObjectURL(file);
+    setUrl(objUrl);
+    return () => URL.revokeObjectURL(objUrl);
+  }, [file]);
+
+  if (!file) return null;
+  return (
+    <div className="space-y-1">
+      <p className="text-[10px] uppercase tracking-wider text-parchment-100/50">{label}</p>
+      {url && (
+        <img src={url} alt={label} className="w-full max-h-56 object-contain rounded-xl bg-white/5 border border-white/10" />
+      )}
+      <p className="text-[10px] text-parchment-100/40 truncate">{file.name}</p>
+    </div>
+  );
+}
+
+function ReviewDetailsModal({ title, fields, files = [], amount, isFree, utrNumber, onBack, onConfirm, submitting, errorMsg, progressMsg }) {
+  return (
+    <div className="fixed inset-0 z-[100] overflow-y-auto bg-canopy-950/80 backdrop-blur-sm">
+      <div className="min-h-full flex items-start justify-center p-4 py-8">
+        <div className="w-full max-w-lg glow-card p-6 sm:p-8 rounded-3xl space-y-5 my-auto">
+        <div className="text-center space-y-1">
+          <h3 className="text-xl font-display font-bold text-parchment-50">Review Your Details</h3>
+          <p className="text-xs text-parchment-100/60">{title}</p>
+        </div>
+
+        {errorMsg && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs text-center">{errorMsg}</div>}
+        {submitting && progressMsg && <p className="text-xs text-center text-parchment-100/60">{progressMsg}</p>}
+
+        <div className="rounded-2xl border border-lantern-500/15 divide-y divide-white/5 overflow-hidden">
+          {fields.map((f, idx) => (
+            <div key={idx} className="flex items-start justify-between gap-3 px-4 py-2.5 text-xs">
+              <span className="text-parchment-100/50 shrink-0">{f.label}</span>
+              <span className="text-parchment-50 font-medium text-right break-words">{f.value || "—"}</span>
+            </div>
+          ))}
+          {!isFree && utrNumber && (
+            <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
+              <span className="text-parchment-100/50 shrink-0">UTR Number</span>
+              <span className="text-parchment-50 font-mono font-medium">{utrNumber}</span>
+            </div>
+          )}
+        </div>
+
+        {!isFree && files.filter((f) => f.file).length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {files.map((f, idx) => (
+              <FilePreview key={idx} file={f.file} label={f.label} />
+            ))}
+          </div>
+        )}
+
+        <div className="bg-canopy-950/60 rounded-2xl p-4 flex justify-between items-center text-sm font-bold">
+          <span className="text-parchment-50">Total Payable</span>
+          <span className="text-lantern-300">{isFree ? "Free (₹0)" : `₹${amount}`}</span>
+        </div>
+
+        <div className="flex justify-between gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={submitting}
+            className="px-6 py-3 rounded-full bg-white/10 text-parchment-50 text-sm font-bold disabled:opacity-50"
+          >
+            ← Go Back &amp; Edit
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={submitting}
+            className="px-8 py-3 rounded-full bg-lantern-400 text-canopy-950 font-bold text-sm disabled:opacity-50"
+          >
+            {submitting ? "Submitting..." : "Confirm & Submit"}
+          </button>
+        </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const statusBanner = {
   PENDING_VERIFICATION: { text: "Verification Pending", cls: "bg-amber-500/15 text-amber-300 border-amber-500/40" },
@@ -109,17 +273,33 @@ export default function RegistrationFlow({ user, setActiveTab, ownedPasses, refr
 
   // My own Delegate ID(s), fetched for prefill/confirmation at event checkout
   const [myDelegateIds, setMyDelegateIds] = useState([]);
+  const refreshMyDelegateIds = async () => {
+    const { data } = await supabase
+      .from("purchases")
+      .select("delegate_id, full_name, phone, college")
+      .eq("user_id", user.id)
+      .not("delegate_id", "is", null);
+    setMyDelegateIds(data || []);
+  };
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      const { data } = await supabase
-        .from("purchases")
-        .select("delegate_id, full_name, phone")
-        .eq("user_id", user.id)
-        .not("delegate_id", "is", null);
-      setMyDelegateIds(data || []);
-    })();
+    refreshMyDelegateIds();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, ownedPasses]);
+
+  // Groups this user LEADS (empty for everyone until they run a group
+  // purchase for the first time). Drives the "Group Registration" tab
+  // and the Individual/Group ID toggle on the Events checkout.
+  const [myGroups, setMyGroups] = useState([]);
+  const refreshMyGroups = async () => {
+    const { data } = await supabase.from("groups").select("*").eq("leader_user_id", user.id).order("created_at", { ascending: false });
+    setMyGroups(data || []);
+  };
+  useEffect(() => {
+    if (!user) return;
+    refreshMyGroups();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   if (!user) {
     return (
@@ -161,6 +341,15 @@ export default function RegistrationFlow({ user, setActiveTab, ownedPasses, refr
         >
           2. Register for Events {ownedPasses.length === 0 && "🔒"}
         </button>
+        <div className="w-6 h-px bg-white/10" />
+        <button
+          onClick={() => setView("group")}
+          className={`px-4 py-2 rounded-full font-semibold transition ${
+            view === "group" ? "bg-lantern-400 text-canopy-950" : "bg-white/5 text-slate-300 hover:bg-white/10"
+          }`}
+        >
+          👑 Group Registration
+        </button>
       </div>
 
       {view === "passes" && (
@@ -173,7 +362,11 @@ export default function RegistrationFlow({ user, setActiveTab, ownedPasses, refr
       )}
 
       {view === "events" && ownedPasses.length > 0 && (
-        <EventsCheckout user={user} ownedPasses={ownedPasses} myDelegateIds={myDelegateIds} />
+        <EventsCheckout user={user} ownedPasses={ownedPasses} myDelegateIds={myDelegateIds} myGroups={myGroups} />
+      )}
+
+      {view === "group" && (
+        <GroupPurchaseCheckout user={user} myGroups={myGroups} refreshMyGroups={refreshMyGroups} refreshOwnedPasses={refreshOwnedPasses} />
       )}
     </div>
   );
@@ -192,17 +385,14 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [result, setResult] = useState(null);
+  const [showReview, setShowReview] = useState(false);
 
-  const passesAmount = useMemo(() => {
-    let total = 0;
-    const tierCode = cartPasses.find((c) => tiers.find((t) => t.id === c));
-    if (tierCode) total += tiers.find((t) => t.id === tierCode)?.price || 0;
-    cartPasses.forEach((code) => {
-      const club = clubPasses.find((p) => p.id === code);
-      if (club) total += club.price;
-    });
-    return total;
-  }, [cartPasses]);
+  const passesAmount = useMemo(() => computePassesAmount(cartPasses), [cartPasses]);
+
+  // Currently no Delegate Tier / Club Pass is ever priced at ₹0, but this
+  // keeps the checkout screen future-proof (e.g. a free/promo pass) and
+  // matches the same free-checkout logic used on the Events checkout.
+  const isFree = passesAmount === 0;
 
   const toggleTier = (tierId) => {
     setCartPasses((prev) => {
@@ -214,14 +404,43 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
     setCartPasses((prev) => (prev.includes(passId) ? prev.filter((c) => c !== passId) : [...prev, passId]));
   };
 
-  const handleSubmit = async () => {
+  // Shared by the "Review Details" button (so the modal never opens on
+  // an incomplete form) and handleSubmit (as a final safety net).
+  const validate = () => {
     setErrorMsg("");
     const cleanPhone = onlyDigits(formData.phone);
-    if (cleanPhone.length !== 10) return setErrorMsg("Please enter a valid 10-digit phone number.");
-    if (!formData.fullName.trim() || !formData.college.trim()) return setErrorMsg("Please fill in your name and college.");
-    if (!idCardFile) return setErrorMsg("Please upload a photo of your College ID card.");
-    if (!paymentScreenshot) return setErrorMsg("Please upload your payment screenshot.");
-    if (!UTR_REGEX.test(utrNumber)) return setErrorMsg("Please enter a valid 12-digit UTR / UPI Transaction Reference Number.");
+    if (cleanPhone.length !== 10) {
+      setErrorMsg("Please enter a valid 10-digit phone number.");
+      return false;
+    }
+    if (!formData.fullName.trim() || !formData.college.trim()) {
+      setErrorMsg("Please fill in your name and college.");
+      return false;
+    }
+    if (!idCardFile) {
+      setErrorMsg("Please upload a photo of your College ID card.");
+      return false;
+    }
+    if (!isFree) {
+      if (!paymentScreenshot) {
+        setErrorMsg("Please upload your payment screenshot.");
+        return false;
+      }
+      if (!UTR_REGEX.test(utrNumber)) {
+        setErrorMsg("Please enter a valid 12-digit UTR / UPI Transaction Reference Number.");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const openReview = () => {
+    if (validate()) setShowReview(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    const cleanPhone = onlyDigits(formData.phone);
 
     setSubmitting(true);
     let step_ = "uploading your College ID card";
@@ -232,12 +451,15 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
       if (idErr) throw idErr;
       const { data: idUrlData } = supabase.storage.from("payment-screenshots").getPublicUrl(idPath);
 
-      step_ = "uploading your payment screenshot";
-      const payExt = paymentScreenshot.name.split(".").pop();
-      const payPath = `receipts/pay_${user.id}_${Date.now()}.${payExt}`;
-      const { error: payErr } = await supabase.storage.from("payment-screenshots").upload(payPath, paymentScreenshot);
-      if (payErr) throw payErr;
-      const { data: payUrlData } = supabase.storage.from("payment-screenshots").getPublicUrl(payPath);
+      let payUrlData = null;
+      if (!isFree) {
+        step_ = "uploading your payment screenshot";
+        const payExt = paymentScreenshot.name.split(".").pop();
+        const payPath = `receipts/pay_${user.id}_${Date.now()}.${payExt}`;
+        const { error: payErr } = await supabase.storage.from("payment-screenshots").upload(payPath, paymentScreenshot);
+        if (payErr) throw payErr;
+        ({ data: payUrlData } = supabase.storage.from("payment-screenshots").getPublicUrl(payPath));
+      }
 
       step_ = "generating your Delegate ID";
       const delegateId = await generateDelegateId(cartPasses);
@@ -256,8 +478,8 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
           college: formData.college,
           year_of_study: formData.yearOfStudy,
           id_card_url: idUrlData.publicUrl,
-          payment_screenshot_url: payUrlData.publicUrl,
-          utr_number: utrNumber,
+          payment_screenshot_url: payUrlData?.publicUrl || null,
+          utr_number: isFree ? null : utrNumber,
           base_amount: passesAmount,
           events_amount: 0,
           total_amount: passesAmount,
@@ -269,6 +491,7 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
       setResult({ delegateId, totalAmount: passesAmount });
       setSubStep("success");
       if (refreshOwnedPasses) refreshOwnedPasses();
+      sendNotification("pass_purchase", user.email, { fullName: formData.fullName, delegateId, amount: passesAmount });
     } catch (err) {
       setErrorMsg(`Registration failed while ${step_}: ${err.message}`);
     } finally {
@@ -440,10 +663,16 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
 
           <div className="bg-canopy-950/60 rounded-2xl p-4 flex justify-between items-center text-sm font-bold">
             <span className="text-parchment-50">Total Payable</span>
-            <span className="text-lantern-300">₹{passesAmount}</span>
+            <span className="text-lantern-300">{isFree ? "Free (₹0)" : `₹${passesAmount}`}</span>
           </div>
 
-          <PaymentQR />
+          {isFree && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs text-center">
+              🎉 This checkout is free — no payment needed. Just confirm your details below.
+            </div>
+          )}
+
+          {!isFree && <PaymentQR />}
 
           <div className="space-y-3">
             <div>
@@ -455,16 +684,20 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
                 className="text-xs text-parchment-100/70 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-lantern-500/20 file:text-lantern-300 file:text-xs w-full"
               />
             </div>
-            <div>
-              <label className="text-xs text-parchment-100/70 block mb-1">Payment Screenshot (UPI)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setPaymentScreenshot(e.target.files[0])}
-                className="text-xs text-parchment-100/70 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-lantern-500/20 file:text-lantern-300 file:text-xs w-full"
-              />
-            </div>
-            <UtrInput value={utrNumber} onChange={setUtrNumber} />
+            {!isFree && (
+              <>
+                <div>
+                  <label className="text-xs text-parchment-100/70 block mb-1">Payment Screenshot (UPI)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPaymentScreenshot(e.target.files[0])}
+                    className="text-xs text-parchment-100/70 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-lantern-500/20 file:text-lantern-300 file:text-xs w-full"
+                  />
+                </div>
+                <UtrInput value={utrNumber} onChange={setUtrNumber} />
+              </>
+            )}
           </div>
 
           <div className="flex justify-between">
@@ -472,14 +705,38 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
               ← Back
             </button>
             <button
-              onClick={handleSubmit}
+              onClick={openReview}
               disabled={submitting}
               className="px-8 py-3 rounded-full bg-lantern-400 text-canopy-950 font-bold text-sm disabled:opacity-50"
             >
-              {submitting ? "Processing..." : `Confirm & Pay ₹${passesAmount}`}
+              Review Details →
             </button>
           </div>
         </div>
+      )}
+
+      {showReview && subStep === "checkout" && (
+        <ReviewDetailsModal
+          title={`${cartPasses.length} pass${cartPasses.length > 1 ? "es" : ""} · ${formData.fullName}`}
+          fields={[
+            { label: "Full Name", value: formData.fullName },
+            { label: "Phone", value: formData.phone },
+            { label: "College", value: formData.college },
+            { label: "Year of Study", value: formData.yearOfStudy },
+            { label: "Passes", value: cartPasses.map((c) => tiers.find((t) => t.id === c)?.name || clubPasses.find((p) => p.id === c)?.name || c).join(", ") },
+          ]}
+          files={[
+            { label: "College ID Card", file: idCardFile },
+            ...(isFree ? [] : [{ label: "Payment Screenshot", file: paymentScreenshot }]),
+          ]}
+          amount={passesAmount}
+          isFree={isFree}
+          utrNumber={utrNumber}
+          onBack={() => setShowReview(false)}
+          onConfirm={handleSubmit}
+          submitting={submitting}
+          errorMsg={errorMsg}
+        />
       )}
     </div>
   );
@@ -488,7 +745,7 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
 // ============================================================
 // STEP 2 — EVENTS CHECKOUT (only reachable once a pass is owned)
 // ============================================================
-function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
+function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
   const [subStep, setSubStep] = useState("browse"); // browse -> checkout -> success
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -504,6 +761,34 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [result, setResult] = useState(null);
+  const [showReview, setShowReview] = useState(false);
+
+  // "individual" = registering yourself (default, everyone gets this).
+  // "group" = a Group Leader registering events on behalf of one of
+  // their verified group members. Only shown as an option once the
+  // person actually leads at least one group.
+  const [registrationMode, setRegistrationMode] = useState("individual");
+  const [selectedGroupId, setSelectedGroupId] = useState(myGroups[0]?.id || "");
+  useEffect(() => {
+    if (myGroups.length > 0 && !selectedGroupId) setSelectedGroupId(myGroups[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myGroups]);
+
+  // Whose account this registration is actually filed under. Defaults
+  // to yourself; becomes the selected group member's user_id in Group
+  // ID mode. This is what gets written as purchases.user_id.
+  const [targetUserId, setTargetUserId] = useState(user.id);
+
+  // Once a Delegate ID resolves to a known, verified identity (either
+  // via autocomplete selection or the Validate button), we snapshot
+  // the canonical name/phone here. If the person then hand-edits those
+  // fields away from the snapshot, submission is blocked — per the
+  // "no editing autofilled identity data" rule.
+  const [identitySnapshot, setIdentitySnapshot] = useState(null);
+
+  // Autocomplete dropdown state, shared by both modes.
+  const [showIdSuggestions, setShowIdSuggestions] = useState(false);
+  const [groupMemberOptions, setGroupMemberOptions] = useState([]);
 
   useEffect(() => {
     if (myDelegateIds[0]) {
@@ -512,6 +797,46 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
       setParticipantWhatsapp(myDelegateIds[0].phone || "");
     }
   }, [myDelegateIds]);
+
+  // Live group-member search as the leader types, scoped server-side
+  // to a group they actually lead (see search_group_members() — it
+  // re-checks leadership itself, this isn't just a client-side filter).
+  useEffect(() => {
+    if (registrationMode !== "group" || !selectedGroupId) {
+      setGroupMemberOptions([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc("search_group_members", {
+        p_group_id: selectedGroupId,
+        p_prefix: delegateId || "",
+      });
+      if (!cancelled) setGroupMemberOptions(error ? [] : data || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [registrationMode, selectedGroupId, delegateId]);
+
+  const switchRegistrationMode = (mode) => {
+    setRegistrationMode(mode);
+    setDelegateVerified(null);
+    setSelfValidation(null);
+    setIdentitySnapshot(null);
+    setShowIdSuggestions(false);
+    if (mode === "individual") {
+      setTargetUserId(user.id);
+      setDelegateId(myDelegateIds[0]?.delegate_id || "");
+      setParticipantName(myDelegateIds[0]?.full_name || "");
+      setParticipantWhatsapp(myDelegateIds[0]?.phone || "");
+    } else {
+      setTargetUserId(null);
+      setDelegateId("");
+      setParticipantName("");
+      setParticipantWhatsapp("");
+    }
+  };
 
   const filteredEvents = useMemo(() => {
     let list = selectedCategory === "all" ? eventsList : eventsList.filter((ev) => ev.category === selectedCategory);
@@ -527,6 +852,12 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
   const entryPrice = (e) => (e.isTeam ? e.perPersonPrice * Math.max(e.members.length, 1) : e.price);
 
   const eventsAmount = useMemo(() => cartEvents.reduce((sum, e) => sum + (entryPrice(e) || 0), 0), [cartEvents]);
+
+  // True when every event in the cart is fee-waived (e.g. unlocked via
+  // Cheshire Charades / Wonderland Whiz / The Golden Key, or a free-only
+  // event). Bypasses payment entirely — no QR, no UPI details, no UTR,
+  // no screenshot upload.
+  const isFree = cartEvents.length > 0 && eventsAmount === 0;
 
   const addEventToCart = (event, subEvent = null) => {
     const subLabel = subEvent ? subEventLabel(subEvent) : null;
@@ -547,7 +878,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
       perPersonPrice: access.price,
       isTeam: team,
       suggestedTeamSize: suggestedSize,
-      members: team ? Array.from({ length: suggestedSize || 1 }, () => ({ name: "", whatsapp: "", delegateId: "" })) : [],
+      members: team ? Array.from({ length: suggestedSize || 1 }, () => ({ name: "", whatsapp: "", email: "", delegateId: "" })) : [],
     };
     setCartEvents((prev) => [...prev, entry]);
     if (team) setExpandedTeamKey(key);
@@ -559,7 +890,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
   };
 
   const addMemberRow = (key) => {
-    setCartEvents((prev) => prev.map((e) => (e.key === key ? { ...e, members: [...e.members, { name: "", whatsapp: "", delegateId: "" }] } : e)));
+    setCartEvents((prev) => prev.map((e) => (e.key === key ? { ...e, members: [...e.members, { name: "", whatsapp: "", email: "", delegateId: "" }] } : e)));
   };
   const removeMemberRow = (key, idx) => {
     setCartEvents((prev) =>
@@ -583,18 +914,45 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
     );
   };
 
+  // Team-mate "type to search" autosuggest — name + ID only (see
+  // search_delegate_ids() in migration_v6.sql), open for at most one
+  // row at a time.
+  const [openSuggestFor, setOpenSuggestFor] = useState(null); // `${key}:${idx}` | null
+  const [memberSuggestions, setMemberSuggestions] = useState([]);
+  const fetchMemberSuggestions = async (key, idx, prefix) => {
+    if (!prefix || prefix.trim().length < 2) {
+      setMemberSuggestions([]);
+      return;
+    }
+    const { data, error } = await supabase.rpc("search_delegate_ids", { p_prefix: prefix, p_limit: 6 });
+    setOpenSuggestFor(`${key}:${idx}`);
+    setMemberSuggestions(error ? [] : data || []);
+  };
+  const selectMemberSuggestion = (key, idx, suggestion) => {
+    updateTeamMember(key, idx, "delegateId", suggestion.delegate_id);
+    setOpenSuggestFor(null);
+    setMemberSuggestions([]);
+  };
+
   // Checks existence, and — when an event is given — whether that
   // person's pass actually grants access to THIS specific event.
-  const validateId = async (idValue, event) => {
+  // p_expected_email, when supplied, asks the DB to confirm the ID
+  // belongs to that exact email (used for team-mate verification)
+  // without ever exposing the actual email back to the client.
+  const validateId = async (idValue, event, expectedEmail = null) => {
     if (!idValue?.trim()) return { status: null };
-    const { data, error } = await supabase.rpc("verify_delegate_id", { p_delegate_id: idValue.trim().toUpperCase() });
+    const { data, error } = await supabase.rpc("verify_delegate_id", {
+      p_delegate_id: normalizeDelegateId(idValue),
+      p_expected_email: expectedEmail ? expectedEmail.trim().toLowerCase() : null,
+    });
     if (error || !data || data.length === 0) return { status: "not_found" };
     const record = data[0];
+    if (expectedEmail && !record.email_match) return { status: "email_mismatch", name: record.full_name };
     if (event) {
       const access = getEventAccess(event, record.pass_codes || []);
       if (!access.unlocked) return { status: "invalid_pass", name: record.full_name };
     }
-    return { status: "valid", name: record.full_name };
+    return { status: "valid", name: record.full_name, phone: record.phone, isSelf: record.is_self };
   };
 
   const eventById = (eventId) => eventsList.find((e) => e.id === eventId);
@@ -603,67 +961,190 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
     const entry = cartEvents.find((e) => e.key === key);
     const member = entry?.members[idx];
     const event = eventById(entry?.eventId);
-    const result = await validateId(member?.delegateId, event);
+    if (!member?.email?.trim()) {
+      updateTeamMember(key, idx, "validation", "email_required");
+      updateTeamMember(key, idx, "verified", false);
+      return;
+    }
+    const result = await validateId(member?.delegateId, event, member.email);
     updateTeamMember(key, idx, "validation", result.status);
     updateTeamMember(key, idx, "verified", result.status === "valid");
     updateTeamMember(key, idx, "verifiedName", result.name || null);
   };
 
   const [selfValidation, setSelfValidation] = useState(null);
+
+  // Individual mode: the ID must belong to the LOGGED-IN user
+  // (result.isSelf) — existing-and-approved is no longer sufficient.
+  // Group mode: the ID must be a verified member of the SELECTED
+  // group (checked via search_group_members, which itself re-checks
+  // leadership server-side).
   const verifySelfId = async () => {
+    if (registrationMode === "group") {
+      if (!selectedGroupId) return setSelfValidation("no_group");
+      const match = groupMemberOptions.find((m) => m.delegate_id === normalizeDelegateId(delegateId));
+      if (!match) {
+        const { data } = await supabase.rpc("search_group_members", { p_group_id: selectedGroupId, p_prefix: delegateId });
+        const found = (data || []).find((m) => m.delegate_id === normalizeDelegateId(delegateId));
+        if (!found) return setSelfValidation("not_in_group");
+        applyIdentitySelection(found.delegate_id, found.full_name, found.phone, found.user_id);
+        return setSelfValidation("valid");
+      }
+      applyIdentitySelection(match.delegate_id, match.full_name, match.phone, match.user_id);
+      return setSelfValidation("valid");
+    }
+
     const result = await validateId(delegateId, null);
+    if (result.status === "valid" && !result.isSelf) {
+      setSelfValidation("not_owned");
+      setDelegateVerified(false);
+      return;
+    }
     setSelfValidation(result.status);
     setDelegateVerified(result.status === "valid");
-    if (result.status === "valid" && result.name) setParticipantName((prev) => prev || result.name);
+    if (result.status === "valid") {
+      applyIdentitySelection(normalizeDelegateId(delegateId), result.name, result.phone, user.id);
+    }
   };
 
-  const handleSubmit = async () => {
+  // Shared by the autocomplete dropdown (both modes) and verifySelfId
+  // — locks in the canonical identity so hand-edited mismatches can be
+  // caught at submit time.
+  const applyIdentitySelection = (id, name, phone, ownerUserId) => {
+    setDelegateId(id);
+    setParticipantName(name || "");
+    setParticipantWhatsapp(phone || "");
+    setDelegateVerified(true);
+    setSelfValidation("valid");
+    setIdentitySnapshot({ name: name || "", phone: phone || "" });
+    setTargetUserId(ownerUserId);
+    setShowIdSuggestions(false);
+  };
+
+  // My-own-account suggestions for the Individual ID input.
+  const myIdSuggestions = useMemo(() => {
+    const q = normalizeDelegateId(delegateId);
+    if (!q) return myDelegateIds;
+    return myDelegateIds.filter((d) => d.delegate_id?.includes(q));
+  }, [delegateId, myDelegateIds]);
+
+  // Shared by the "Review Details" button (so the modal never opens on
+  // an incomplete form) and handleSubmit (as a final safety net).
+  const validate = () => {
     setErrorMsg("");
-    if (cartEvents.length === 0) return setErrorMsg("Add at least one event to your cart.");
-    if (!delegateId.trim()) return setErrorMsg("Please enter your Delegate ID.");
-    if (delegateVerified !== true) return setErrorMsg('Please validate your Delegate ID (click "Validate") before checking out.');
-    if (!participantName.trim()) return setErrorMsg("Please enter your name.");
-    const cleanPhone = onlyDigits(participantWhatsapp);
-    if (cleanPhone.length !== 10) return setErrorMsg("Please enter a valid 10-digit WhatsApp number.");
-    if (!paymentScreenshot) return setErrorMsg("Please upload your payment screenshot.");
-    if (!UTR_REGEX.test(utrNumber)) return setErrorMsg("Please enter a valid 12-digit UTR / UPI Transaction Reference Number.");
+    if (cartEvents.length === 0) {
+      setErrorMsg("Add at least one event to your cart.");
+      return false;
+    }
+    if (registrationMode === "group" && !selectedGroupId) {
+      setErrorMsg("Select which group you're registering a member from.");
+      return false;
+    }
+    if (!delegateId.trim()) {
+      setErrorMsg(registrationMode === "group" ? "Please enter the member's Group Delegate ID." : "Please enter your Delegate ID.");
+      return false;
+    }
+    const idFormatOk =
+      registrationMode === "group" ? GROUP_ID_REGEX.test(normalizeDelegateId(delegateId)) : INDIVIDUAL_ID_REGEX.test(normalizeDelegateId(delegateId));
+    if (!idFormatOk) {
+      setErrorMsg(
+        registrationMode === "group"
+          ? "Group Delegate IDs must be 13 characters, formatted like G001-SP000001."
+          : "Delegate IDs must be exactly 8 characters."
+      );
+      return false;
+    }
+    if (!targetUserId || delegateVerified !== true) {
+      setErrorMsg('Please validate the Delegate ID (click "Validate") before checking out.');
+      return false;
+    }
+    if (!participantName.trim()) {
+      setErrorMsg("Please enter a name.");
+      return false;
+    }
+    if (onlyDigits(participantWhatsapp).length !== 10) {
+      setErrorMsg("Please enter a valid 10-digit WhatsApp number.");
+      return false;
+    }
+    // Autofilled identity fields can't be hand-edited into a mismatch —
+    // catches someone verifying ID "X" and then typing a different
+    // name/number over the top of it.
+    if (identitySnapshot) {
+      const nameChanged = participantName.trim() !== (identitySnapshot.name || "").trim();
+      const phoneChanged = identitySnapshot.phone && onlyDigits(participantWhatsapp) !== onlyDigits(identitySnapshot.phone);
+      if (nameChanged || phoneChanged) {
+        setErrorMsg("Name/WhatsApp don't match the verified Delegate ID's registered details. Please re-validate instead of editing these fields.");
+        return false;
+      }
+    }
+    if (!isFree) {
+      if (!paymentScreenshot) {
+        setErrorMsg("Please upload your payment screenshot.");
+        return false;
+      }
+      if (!UTR_REGEX.test(utrNumber)) {
+        setErrorMsg("Please enter a valid 12-digit UTR / UPI Transaction Reference Number.");
+        return false;
+      }
+    }
 
     for (const e of cartEvents) {
       if (!e.isTeam) continue;
       if (e.members.length < 1) {
-        return setErrorMsg(`${e.title} needs at least one team member.`);
+        setErrorMsg(`${e.title} needs at least one team member.`);
+        return false;
       }
       for (const m of e.members) {
-        if (!m.name || !m.whatsapp || !m.delegateId) return setErrorMsg(`Please complete every team member's details for ${e.title}.`);
-        if (!m.verified) return setErrorMsg(`Please validate every team member's Delegate ID for ${e.title} before checking out.`);
+        if (!m.name || !m.whatsapp || !m.email || !m.delegateId) {
+          setErrorMsg(`Please complete every team member's details (including email) for ${e.title}.`);
+          return false;
+        }
+        if (!m.verified) {
+          setErrorMsg(`Please validate every team member's Delegate ID for ${e.title} before checking out.`);
+          return false;
+        }
       }
     }
+    return true;
+  };
+
+  const openReview = () => {
+    if (validate()) setShowReview(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    const cleanPhone = onlyDigits(participantWhatsapp);
 
     setSubmitting(true);
     let step_ = "uploading your payment screenshot";
     try {
-      const payExt = paymentScreenshot.name.split(".").pop();
-      const payPath = `receipts/pay_${user.id}_${Date.now()}.${payExt}`;
-      const { error: payErr } = await supabase.storage.from("payment-screenshots").upload(payPath, paymentScreenshot);
-      if (payErr) throw payErr;
-      const { data: payUrlData } = supabase.storage.from("payment-screenshots").getPublicUrl(payPath);
+      let payUrlData = null;
+      if (!isFree) {
+        const payExt = paymentScreenshot.name.split(".").pop();
+        const payPath = `receipts/pay_${user.id}_${Date.now()}.${payExt}`;
+        const { error: payErr } = await supabase.storage.from("payment-screenshots").upload(payPath, paymentScreenshot);
+        if (payErr) throw payErr;
+        ({ data: payUrlData } = supabase.storage.from("payment-screenshots").getPublicUrl(payPath));
+      }
 
       step_ = "saving your purchase record";
       const { data: purchase, error: purchaseErr } = await supabase
         .from("purchases")
         .insert([
           {
-            user_id: user.id,
+            user_id: targetUserId,
+            group_id: registrationMode === "group" ? selectedGroupId : null,
             delegate_id: null,
             pass_type: null,
             pass_codes: [],
             full_name: participantName,
-            email: user.email,
+            email: registrationMode === "group" ? null : user.email,
             phone: cleanPhone,
             college: myDelegateIds[0]?.college || "",
             id_card_url: null,
-            payment_screenshot_url: payUrlData.publicUrl,
-            utr_number: utrNumber,
+            payment_screenshot_url: payUrlData?.publicUrl || null,
+            utr_number: isFree ? null : utrNumber,
             base_amount: 0,
             events_amount: eventsAmount,
             total_amount: eventsAmount,
@@ -690,7 +1171,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
               delegate_id: delegateId.trim().toUpperCase(),
               participant_name: participantName,
               participant_whatsapp: cleanPhone,
-              utr_number: utrNumber,
+              utr_number: isFree ? null : utrNumber,
             },
           ])
           .select()
@@ -704,6 +1185,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
             full_name: m.name,
             whatsapp_number: onlyDigits(m.whatsapp),
             delegate_id: m.delegateId?.trim().toUpperCase(),
+            email: m.email?.trim().toLowerCase() || null,
             verified: !!m.verified,
           }));
           const { error: teamErr } = await supabase.from("team_members").insert(rows);
@@ -713,6 +1195,11 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
 
       setResult({ totalAmount: eventsAmount, count: cartEvents.length });
       setSubStep("success");
+      sendNotification("event_registration", user.email, {
+        fullName: participantName,
+        events: cartEvents.map((e) => e.title).join(", "),
+        amount: eventsAmount,
+      });
     } catch (err) {
       setErrorMsg(`Registration failed while ${step_}: ${err.message}`);
     } finally {
@@ -987,15 +1474,28 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                       </p>
                       {e.members.map((m, idx) => {
                         const canRemove = e.members.length > 1;
+                        const suggestKey = `${e.key}:${idx}`;
                         return (
                           <div key={idx} className="space-y-1">
-                            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1.4fr_auto_auto] gap-2 items-center">
+                            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr] gap-2">
                               <input
                                 placeholder={`Member ${idx + 1} Name`}
                                 value={m.name || ""}
                                 onChange={(ev3) => updateTeamMember(e.key, idx, "name", ev3.target.value)}
                                 className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
                               />
+                              <input
+                                placeholder="Member's Email (must match their account)"
+                                value={m.email || ""}
+                                onChange={(ev3) => {
+                                  updateTeamMember(e.key, idx, "email", ev3.target.value);
+                                  updateTeamMember(e.key, idx, "verified", null);
+                                  updateTeamMember(e.key, idx, "validation", null);
+                                }}
+                                className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+                              />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr_auto_auto] gap-2 items-center">
                               <input
                                 placeholder="WhatsApp Number"
                                 value={m.whatsapp || ""}
@@ -1006,18 +1506,38 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                               />
                               <div className="relative">
                                 <input
-                                  placeholder="Delegate ID (e.g. DT10019)"
+                                  placeholder="Delegate ID (e.g. DT100019)"
                                   value={m.delegateId || ""}
+                                  maxLength={13}
                                   onChange={(ev3) => {
-                                    updateTeamMember(e.key, idx, "delegateId", ev3.target.value);
+                                    const v = ev3.target.value.toUpperCase();
+                                    updateTeamMember(e.key, idx, "delegateId", v);
                                     updateTeamMember(e.key, idx, "verified", null);
                                     updateTeamMember(e.key, idx, "validation", null);
+                                    fetchMemberSuggestions(e.key, idx, v);
                                   }}
+                                  onFocus={() => fetchMemberSuggestions(e.key, idx, m.delegateId || "")}
+                                  onBlur={() => setTimeout(() => setOpenSuggestFor((cur) => (cur === suggestKey ? null : cur)), 150)}
                                   className={`w-full px-3 py-2 rounded-lg bg-canopy-950/60 border text-parchment-50 text-xs ${
                                     m.verified === true ? "border-emerald-500/50" : m.validation ? "border-red-500/50" : "border-white/10"
                                   }`}
                                 />
                                 {m.verified === true && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-400 text-[10px]">✓</span>}
+                                {openSuggestFor === suggestKey && memberSuggestions.length > 0 && (
+                                  <div className="absolute z-20 top-full left-0 right-0 mt-1 rounded-xl bg-canopy-950 border border-lantern-500/30 shadow-xl overflow-hidden">
+                                    {memberSuggestions.map((s) => (
+                                      <button
+                                        type="button"
+                                        key={s.delegate_id}
+                                        onClick={() => selectMemberSuggestion(e.key, idx, s)}
+                                        className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex justify-between gap-2"
+                                      >
+                                        <span className="font-mono text-lantern-300">{s.delegate_id}</span>
+                                        <span className="text-parchment-100/60 truncate">{s.full_name}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                               <button
                                 onClick={() => verifyMemberId(e.key, idx)}
@@ -1035,10 +1555,16 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
                               </button>
                             </div>
                             {m.validation === "not_found" && (
-                              <p className="text-[10px] text-red-400 pl-1">No such ID present.</p>
+                              <p className="text-[10px] text-red-400 pl-1">No such Delegate ID present.</p>
                             )}
                             {m.validation === "invalid_pass" && (
-                              <p className="text-[10px] text-red-400 pl-1">Invalid Pass for this Event.</p>
+                              <p className="text-[10px] text-red-400 pl-1">This ID's pass doesn't grant access to this event.</p>
+                            )}
+                            {m.validation === "email_required" && (
+                              <p className="text-[10px] text-red-400 pl-1">Enter the teammate's email before validating.</p>
+                            )}
+                            {m.validation === "email_mismatch" && (
+                              <p className="text-[10px] text-red-400 pl-1">This Delegate ID doesn't belong to that email address.</p>
                             )}
                           </div>
                         );
@@ -1075,17 +1601,68 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
 
           {errorMsg && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs text-center">{errorMsg}</div>}
 
+          {myGroups.length > 0 && (
+            <div className="flex items-center justify-center gap-2 text-xs">
+              <button
+                onClick={() => switchRegistrationMode("individual")}
+                className={`px-4 py-1.5 rounded-full font-semibold transition ${
+                  registrationMode === "individual" ? "bg-lantern-400 text-canopy-950" : "bg-white/5 text-slate-300 hover:bg-white/10"
+                }`}
+              >
+                Individual ID
+              </button>
+              <button
+                onClick={() => switchRegistrationMode("group")}
+                className={`px-4 py-1.5 rounded-full font-semibold transition ${
+                  registrationMode === "group" ? "bg-lantern-400 text-canopy-950" : "bg-white/5 text-slate-300 hover:bg-white/10"
+                }`}
+              >
+                👑 Group ID
+              </button>
+            </div>
+          )}
+
+          {registrationMode === "group" && myGroups.length > 1 && (
+            <div>
+              <label className="text-xs text-parchment-100/70 block mb-1">Which group?</label>
+              <select
+                value={selectedGroupId}
+                onChange={(e) => {
+                  setSelectedGroupId(e.target.value);
+                  setDelegateId("");
+                  setDelegateVerified(null);
+                  setIdentitySnapshot(null);
+                }}
+                className="w-full px-4 py-3 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 text-sm"
+              >
+                {myGroups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.group_code}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
-            <label className="text-xs text-parchment-100/70 block mb-1">Your Delegate ID</label>
-            <div className="flex gap-2">
+            <label className="text-xs text-parchment-100/70 block mb-1">
+              {registrationMode === "group" ? "Group Member's Delegate ID" : "Your Delegate ID"}
+            </label>
+            <div className="flex gap-2 relative">
               <input
                 value={delegateId}
+                maxLength={registrationMode === "group" ? 13 : 8}
                 onChange={(e) => {
-                  setDelegateId(e.target.value);
+                  const v = e.target.value.toUpperCase();
+                  setDelegateId(v);
                   setDelegateVerified(null);
                   setSelfValidation(null);
+                  setIdentitySnapshot(null);
+                  setShowIdSuggestions(true);
                 }}
-                placeholder="e.g. DT10019"
+                onFocus={() => setShowIdSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowIdSuggestions(false), 150)}
+                placeholder={registrationMode === "group" ? "e.g. G001-SP000002" : "e.g. DT100019"}
                 className={`flex-1 px-4 py-3 rounded-xl bg-canopy-950/50 border text-parchment-50 text-sm focus:outline-none ${
                   delegateVerified === true ? "border-emerald-500/50" : selfValidation ? "border-red-500/50" : "border-lantern-500/15"
                 }`}
@@ -1093,9 +1670,44 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
               <button onClick={verifySelfId} className="px-4 py-2 rounded-xl bg-mist-500 text-canopy-950 text-xs font-bold shrink-0">
                 Validate
               </button>
+
+              {showIdSuggestions && registrationMode === "individual" && myIdSuggestions.length > 0 && (
+                <div className="absolute z-20 top-full left-0 right-16 mt-1 rounded-xl bg-canopy-950 border border-lantern-500/30 shadow-xl overflow-hidden">
+                  {myIdSuggestions.map((s) => (
+                    <button
+                      type="button"
+                      key={s.delegate_id}
+                      onClick={() => applyIdentitySelection(s.delegate_id, s.full_name, s.phone, user.id)}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex justify-between gap-2"
+                    >
+                      <span className="font-mono text-lantern-300">{s.delegate_id}</span>
+                      <span className="text-parchment-100/60 truncate">{s.full_name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {showIdSuggestions && registrationMode === "group" && groupMemberOptions.length > 0 && (
+                <div className="absolute z-20 top-full left-0 right-16 mt-1 rounded-xl bg-canopy-950 border border-lantern-500/30 shadow-xl overflow-hidden">
+                  {groupMemberOptions.map((s) => (
+                    <button
+                      type="button"
+                      key={s.delegate_id}
+                      onClick={() => applyIdentitySelection(s.delegate_id, s.full_name, s.phone, s.user_id)}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex justify-between gap-2"
+                    >
+                      <span className="font-mono text-lantern-300">{s.delegate_id}</span>
+                      <span className="text-parchment-100/60 truncate">{s.full_name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            {delegateVerified === true && <p className="text-[11px] text-emerald-400 mt-1">✓ Valid Delegate ID</p>}
-            {selfValidation === "not_found" && <p className="text-[11px] text-red-400 mt-1">No such ID present.</p>}
+            {delegateVerified === true && <p className="text-[11px] text-emerald-400 mt-1">✓ Verified{identitySnapshot?.name ? ` — ${identitySnapshot.name}` : ""}</p>}
+            {selfValidation === "not_found" && <p className="text-[11px] text-red-400 mt-1">No such Delegate ID present.</p>}
+            {selfValidation === "not_owned" && <p className="text-[11px] text-red-400 mt-1">This Delegate ID isn't linked to your account.</p>}
+            {selfValidation === "not_in_group" && <p className="text-[11px] text-red-400 mt-1">This ID isn't a member of the selected group.</p>}
+            {selfValidation === "no_group" && <p className="text-[11px] text-red-400 mt-1">Select a group first.</p>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1117,36 +1729,536 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds }) {
 
           <div className="bg-canopy-950/60 rounded-2xl p-4 flex justify-between items-center text-sm font-bold">
             <span className="text-parchment-50">Total Payable ({cartEvents.length} events)</span>
-            <span className="text-lantern-300">₹{eventsAmount}</span>
+            <span className="text-lantern-300">{isFree ? "Free (₹0)" : `₹${eventsAmount}`}</span>
           </div>
 
-          <PaymentQR />
+          {isFree && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs text-center">
+              🎉 Every event in your cart is free with your pass — no payment needed. Just confirm your details below.
+            </div>
+          )}
 
-          <div>
-            <label className="text-xs text-parchment-100/70 block mb-1">Payment Screenshot (UPI)</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setPaymentScreenshot(e.target.files[0])}
-              className="text-xs text-parchment-100/70 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-lantern-500/20 file:text-lantern-300 file:text-xs w-full"
-            />
-          </div>
+          {!isFree && (
+            <>
+              <PaymentQR />
 
-          <UtrInput value={utrNumber} onChange={setUtrNumber} />
+              <div>
+                <label className="text-xs text-parchment-100/70 block mb-1">Payment Screenshot (UPI)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setPaymentScreenshot(e.target.files[0])}
+                  className="text-xs text-parchment-100/70 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-lantern-500/20 file:text-lantern-300 file:text-xs w-full"
+                />
+              </div>
+
+              <UtrInput value={utrNumber} onChange={setUtrNumber} />
+            </>
+          )}
 
           <div className="flex justify-between">
             <button onClick={() => setSubStep("browse")} className="px-6 py-3 rounded-full bg-white/10 text-parchment-50 text-sm font-bold">
               ← Back
             </button>
             <button
-              onClick={handleSubmit}
+              onClick={openReview}
               disabled={submitting}
               className="px-8 py-3 rounded-full bg-lantern-400 text-canopy-950 font-bold text-sm disabled:opacity-50"
             >
-              {submitting ? "Processing..." : `Confirm & Pay ₹${eventsAmount}`}
+              Review Details →
             </button>
           </div>
         </div>
+      )}
+
+      {showReview && subStep === "checkout" && (
+        <ReviewDetailsModal
+          title={`${cartEvents.length} event${cartEvents.length > 1 ? "s" : ""} · ${participantName}`}
+          fields={[
+            { label: "Registering As", value: registrationMode === "group" ? `Group Member (${myGroups.find((g) => g.id === selectedGroupId)?.group_code || ""})` : "Myself" },
+            { label: "Delegate ID", value: normalizeDelegateId(delegateId) },
+            { label: "Full Name", value: participantName },
+            { label: "WhatsApp", value: participantWhatsapp },
+            { label: "Events", value: cartEvents.map((e) => e.title).join(", ") },
+          ]}
+          files={isFree ? [] : [{ label: "Payment Screenshot", file: paymentScreenshot }]}
+          amount={eventsAmount}
+          isFree={isFree}
+          utrNumber={utrNumber}
+          onBack={() => setShowReview(false)}
+          onConfirm={handleSubmit}
+          submitting={submitting}
+          errorMsg={errorMsg}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// GROUP REGISTRATION — a Group Leader buys the same Pass/Tier for
+// themselves plus any number of teammates in a single transaction.
+// The leader becomes Member 1 automatically; every other member is
+// added by email only — their Supabase account is created (or
+// matched, if it already exists) via the /api/provision-group-member
+// serverless function, which is the one place in this app that needs
+// the service role key (see api/_supabaseAdmin.js).
+// ============================================================
+function GroupPurchaseCheckout({ user, myGroups, refreshMyGroups, refreshOwnedPasses }) {
+  const [subStep, setSubStep] = useState("form"); // form -> checkout -> success
+  const [cartPasses, setCartPasses] = useState([]);
+  const [leader, setLeader] = useState({ fullName: "", phone: "", college: "", yearOfStudy: "1st Year" });
+  const [members, setMembers] = useState([]); // [{ email, fullName, phone }]
+  const [idCardFile, setIdCardFile] = useState(null);
+  const [paymentScreenshot, setPaymentScreenshot] = useState(null);
+  const [utrNumber, setUtrNumber] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [progressMsg, setProgressMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [result, setResult] = useState(null);
+  const [showReview, setShowReview] = useState(false);
+
+  const togglePass = (id) => {
+    const isTier = !!tiers.find((t) => t.id === id);
+    setCartPasses((prev) => {
+      if (isTier) {
+        const withoutTiers = prev.filter((p) => !tiers.find((t) => t.id === p));
+        return prev.includes(id) ? withoutTiers : [...withoutTiers, id];
+      }
+      return prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id];
+    });
+  };
+
+  const perPersonAmount = useMemo(() => computePassesAmount(cartPasses), [cartPasses]);
+  const totalMembers = 1 + members.length; // leader counts as Member 1
+  const totalAmount = perPersonAmount * totalMembers;
+  const isFree = cartPasses.length > 0 && totalAmount === 0;
+
+  const addMember = () => setMembers((prev) => [...prev, { email: "", fullName: "", phone: "" }]);
+  const removeMember = (idx) => setMembers((prev) => prev.filter((_, i) => i !== idx));
+  const updateMember = (idx, field, value) => setMembers((prev) => prev.map((m, i) => (i === idx ? { ...m, [field]: value } : m)));
+
+  const validate = () => {
+    setErrorMsg("");
+    if (cartPasses.length === 0) {
+      setErrorMsg("Select at least one Pass or Tier for the group.");
+      return false;
+    }
+    if (!leader.fullName.trim() || !leader.college.trim()) {
+      setErrorMsg("Fill in your own name and college.");
+      return false;
+    }
+    if (onlyDigits(leader.phone).length !== 10) {
+      setErrorMsg("Enter a valid 10-digit phone number for yourself.");
+      return false;
+    }
+    if (!idCardFile) {
+      setErrorMsg("Upload your own College ID card photo.");
+      return false;
+    }
+    for (const m of members) {
+      if (!m.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.email.trim())) {
+        setErrorMsg("Enter a valid email address for every group member.");
+        return false;
+      }
+      if (!m.fullName.trim()) {
+        setErrorMsg("Enter a name for every group member.");
+        return false;
+      }
+    }
+    const emails = members.map((m) => m.email.trim().toLowerCase());
+    if (new Set(emails).size !== emails.length) {
+      setErrorMsg("You've entered the same member email twice.");
+      return false;
+    }
+    if (emails.includes(user.email.toLowerCase())) {
+      setErrorMsg("Don't add your own email as a member — you're automatically Member 1 (the leader).");
+      return false;
+    }
+    if (!isFree) {
+      if (!paymentScreenshot) {
+        setErrorMsg("Upload the payment screenshot (it covers the whole group).");
+        return false;
+      }
+      if (!UTR_REGEX.test(utrNumber)) {
+        setErrorMsg("Enter a valid 12-digit UTR / UPI Transaction Reference Number.");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const openReview = () => {
+    if (validate()) setShowReview(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    setSubmitting(true);
+    setErrorMsg("");
+    try {
+      setProgressMsg("Creating your group...");
+      const groupCode = await generateGroupCode();
+      const { data: group, error: groupErr } = await supabase
+        .from("groups")
+        .insert([{ group_code: groupCode, leader_user_id: user.id, leader_name: leader.fullName, leader_email: user.email }])
+        .select()
+        .single();
+      if (groupErr) throw groupErr;
+
+      let payUrlData = null;
+      if (!isFree) {
+        setProgressMsg("Uploading payment screenshot...");
+        const payExt = paymentScreenshot.name.split(".").pop();
+        const payPath = `receipts/pay_${user.id}_${Date.now()}.${payExt}`;
+        const { error: payErr } = await supabase.storage.from("payment-screenshots").upload(payPath, paymentScreenshot);
+        if (payErr) throw payErr;
+        ({ data: payUrlData } = supabase.storage.from("payment-screenshots").getPublicUrl(payPath));
+      }
+
+      setProgressMsg("Uploading your College ID card...");
+      const idExt = idCardFile.name.split(".").pop();
+      const idPath = `id_cards/id_${user.id}_${Date.now()}.${idExt}`;
+      const { error: idErr } = await supabase.storage.from("payment-screenshots").upload(idPath, idCardFile);
+      if (idErr) throw idErr;
+      const { data: idUrlData } = supabase.storage.from("payment-screenshots").getPublicUrl(idPath);
+
+      const passType = cartPasses.some((c) => tiers.find((t) => t.id === c)) ? "tier" : "club";
+      const createdMembers = [];
+
+      // Member 1 is always the leader themselves.
+      setProgressMsg(`Generating Delegate ID 1 of ${totalMembers}...`);
+      const leaderBaseId = await generateDelegateId(cartPasses);
+      const leaderFullId = buildGroupDelegateId(groupCode, leaderBaseId);
+      const { error: leaderPurchaseErr } = await supabase.from("purchases").insert([
+        {
+          user_id: user.id,
+          group_id: group.id,
+          delegate_id: leaderFullId,
+          pass_type: passType,
+          pass_codes: cartPasses,
+          full_name: leader.fullName,
+          email: user.email,
+          phone: onlyDigits(leader.phone),
+          college: leader.college,
+          year_of_study: leader.yearOfStudy,
+          id_card_url: idUrlData.publicUrl,
+          payment_screenshot_url: payUrlData?.publicUrl || null,
+          utr_number: isFree ? null : utrNumber,
+          base_amount: perPersonAmount,
+          events_amount: 0,
+          total_amount: perPersonAmount,
+          payment_status: "PENDING_VERIFICATION",
+        },
+      ]);
+      if (leaderPurchaseErr) throw leaderPurchaseErr;
+      createdMembers.push({ email: user.email, fullName: leader.fullName, delegateId: leaderFullId });
+
+      // Every other member: provision (or find) their account, then
+      // mint their own group-prefixed Delegate ID and purchase row.
+      for (let i = 0; i < members.length; i++) {
+        const m = members[i];
+        setProgressMsg(`Setting up account ${i + 2} of ${totalMembers} (${m.email})...`);
+        const { user_id: memberUserId } = await provisionGroupMember({
+          email: m.email.trim(),
+          fullName: m.fullName,
+          groupId: group.id,
+        });
+
+        setProgressMsg(`Generating Delegate ID ${i + 2} of ${totalMembers}...`);
+        const baseId = await generateDelegateId(cartPasses);
+        const fullId = buildGroupDelegateId(groupCode, baseId);
+
+        const { error: memberPurchaseErr } = await supabase.from("purchases").insert([
+          {
+            user_id: memberUserId,
+            group_id: group.id,
+            delegate_id: fullId,
+            pass_type: passType,
+            pass_codes: cartPasses,
+            full_name: m.fullName,
+            email: m.email.trim().toLowerCase(),
+            phone: onlyDigits(m.phone) || null,
+            college: leader.college,
+            year_of_study: leader.yearOfStudy,
+            id_card_url: null,
+            payment_screenshot_url: payUrlData?.publicUrl || null,
+            utr_number: isFree ? null : utrNumber,
+            base_amount: perPersonAmount,
+            events_amount: 0,
+            total_amount: perPersonAmount,
+            payment_status: "PENDING_VERIFICATION",
+          },
+        ]);
+        if (memberPurchaseErr) throw memberPurchaseErr;
+        createdMembers.push({ email: m.email, fullName: m.fullName, delegateId: fullId });
+
+        sendNotification("group_invite", m.email, { fullName: m.fullName, groupCode, delegateId: fullId, leaderName: leader.fullName });
+      }
+
+      sendNotification("pass_purchase", user.email, { fullName: leader.fullName, delegateId: leaderFullId, amount: totalAmount });
+
+      setResult({ groupCode, members: createdMembers, totalAmount });
+      setSubStep("success");
+      if (refreshMyGroups) refreshMyGroups();
+      if (refreshOwnedPasses) refreshOwnedPasses();
+    } catch (err) {
+      setErrorMsg(`Group registration failed while setting things up: ${err.message}`);
+    } finally {
+      setSubmitting(false);
+      setProgressMsg("");
+    }
+  };
+
+  if (subStep === "success" && result) {
+    return (
+      <div className="max-w-lg mx-auto glow-card p-8 rounded-3xl text-center space-y-4">
+        <div className="text-5xl">👑</div>
+        <h3 className="text-2xl font-display font-bold text-parchment-50">Group {result.groupCode} Registered!</h3>
+        <p className="text-sm text-parchment-100/70">Pending committee verification. Delegate IDs generated:</p>
+        <div className="text-left rounded-2xl border border-lantern-500/15 divide-y divide-white/5 overflow-hidden">
+          {result.members.map((m, i) => (
+            <div key={i} className="flex justify-between px-4 py-2.5 text-xs gap-2">
+              <span className="text-parchment-100/70 truncate">
+                {m.fullName} ({m.email})
+              </span>
+              <span className="font-mono font-bold text-lantern-300 shrink-0">{m.delegateId}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] text-parchment-100/50">
+          Teammates who didn't already have an account will get an email to set their password — or they can just sign in with Google using
+          that same email address.
+        </p>
+        <button
+          onClick={() => {
+            setSubStep("form");
+            setCartPasses([]);
+            setMembers([]);
+            setIdCardFile(null);
+            setPaymentScreenshot(null);
+            setUtrNumber("");
+            setResult(null);
+          }}
+          className="px-6 py-3 rounded-full bg-lantern-400 text-canopy-950 font-bold text-sm"
+        >
+          Register Another Group
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {myGroups.length > 0 && subStep === "form" && (
+        <p className="text-center text-xs text-parchment-100/50">
+          You already lead {myGroups.length} group{myGroups.length > 1 ? "s" : ""} ({myGroups.map((g) => g.group_code).join(", ")}). Running this
+          again starts a brand-new group.
+        </p>
+      )}
+
+      {subStep === "form" && (
+        <div className="max-w-2xl mx-auto glow-card p-8 rounded-3xl space-y-6">
+          <div className="text-center space-y-1">
+            <h3 className="text-xl font-display font-bold text-parchment-50">👑 Group Registration</h3>
+            <p className="text-xs text-parchment-100/60">
+              Buy the same Pass/Tier for your whole group in one go. You're automatically Member 1 (the leader).
+            </p>
+          </div>
+
+          {errorMsg && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs text-center">{errorMsg}</div>}
+
+          <div>
+            <p className="text-xs font-semibold text-parchment-100/80 mb-2">Pass / Tier for every member</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {[...tiers, ...clubPasses].map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => togglePass(p.id)}
+                  className={`text-left px-4 py-3 rounded-xl border text-xs transition ${
+                    cartPasses.includes(p.id) ? "border-lantern-400 bg-lantern-500/10" : "border-white/10 bg-canopy-950/40 hover:border-white/20"
+                  }`}
+                >
+                  <span className="font-bold text-parchment-50 block">{p.name}</span>
+                  <span className="block text-parchment-100/60">₹{p.price} / person</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 border-t border-white/10 pt-4">
+            <p className="text-xs font-semibold text-parchment-100/80">Your Own Details (Member 1 — Leader)</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                placeholder="Full Name"
+                value={leader.fullName}
+                onChange={(e) => setLeader((l) => ({ ...l, fullName: e.target.value }))}
+                className="px-4 py-3 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 text-sm"
+              />
+              <input
+                placeholder="Phone Number"
+                value={leader.phone}
+                maxLength={10}
+                inputMode="numeric"
+                onChange={(e) => setLeader((l) => ({ ...l, phone: onlyDigits(e.target.value) }))}
+                className="px-4 py-3 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 text-sm"
+              />
+              <input
+                placeholder="College"
+                value={leader.college}
+                onChange={(e) => setLeader((l) => ({ ...l, college: e.target.value }))}
+                className="px-4 py-3 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 text-sm"
+              />
+              <select
+                value={leader.yearOfStudy}
+                onChange={(e) => setLeader((l) => ({ ...l, yearOfStudy: e.target.value }))}
+                className="px-4 py-3 rounded-xl bg-canopy-950/50 border border-lantern-500/15 text-parchment-50 text-sm"
+              >
+                {["1st Year", "2nd Year", "3rd Year", "4th Year", "Intern", "PG/Resident"].map((y) => (
+                  <option key={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-parchment-100/70 block mb-1">Your College ID Card Photo</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setIdCardFile(e.target.files[0])}
+                className="text-xs text-parchment-100/70 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-lantern-500/20 file:text-lantern-300 file:text-xs w-full"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3 border-t border-white/10 pt-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-parchment-100/80">Group Members ({members.length})</p>
+              <button type="button" onClick={addMember} className="text-lantern-300 text-xs font-semibold hover:underline">
+                + Add Member
+              </button>
+            </div>
+            <p className="text-[10px] text-parchment-100/50">
+              Each email gets its own Spandan account automatically (or is linked to their existing one) — they can log in via Google, or use
+              "Forgot Password" to set one.
+            </p>
+            {members.map((m, idx) => (
+              <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1.2fr_1fr_1fr_auto] gap-2 items-center">
+                <input
+                  placeholder="Member Email"
+                  value={m.email}
+                  onChange={(e) => updateMember(idx, "email", e.target.value)}
+                  className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+                />
+                <input
+                  placeholder="Full Name"
+                  value={m.fullName}
+                  onChange={(e) => updateMember(idx, "fullName", e.target.value)}
+                  className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+                />
+                <input
+                  placeholder="Phone (optional)"
+                  value={m.phone}
+                  maxLength={10}
+                  inputMode="numeric"
+                  onChange={(e) => updateMember(idx, "phone", onlyDigits(e.target.value))}
+                  className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+                />
+                <button type="button" onClick={() => removeMember(idx)} className="text-red-400 text-xs hover:underline">
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-canopy-950/60 rounded-2xl p-4 flex justify-between items-center text-sm font-bold">
+            <span className="text-parchment-50">
+              Total ({totalMembers} member{totalMembers > 1 ? "s" : ""} × ₹{perPersonAmount})
+            </span>
+            <span className="text-lantern-300">{isFree ? "Free (₹0)" : `₹${totalAmount}`}</span>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={() => {
+                if (cartPasses.length === 0) return setErrorMsg("Select a Pass/Tier first.");
+                setErrorMsg("");
+                setSubStep("checkout");
+              }}
+              className="px-8 py-3 rounded-full bg-lantern-400 text-canopy-950 font-bold text-sm"
+            >
+              Continue to Payment →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {subStep === "checkout" && (
+        <div className="max-w-2xl mx-auto glow-card p-8 rounded-3xl space-y-6">
+          <h3 className="text-xl font-display font-bold text-parchment-50 text-center">Group Payment</h3>
+          {errorMsg && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs text-center">{errorMsg}</div>}
+
+          <div className="bg-canopy-950/60 rounded-2xl p-4 flex justify-between items-center text-sm font-bold">
+            <span className="text-parchment-50">Total Payable ({totalMembers} members)</span>
+            <span className="text-lantern-300">{isFree ? "Free (₹0)" : `₹${totalAmount}`}</span>
+          </div>
+
+          {isFree ? (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs text-center">
+              🎉 This group registration is free — no payment needed.
+            </div>
+          ) : (
+            <>
+              <PaymentQR />
+              <div>
+                <label className="text-xs text-parchment-100/70 block mb-1">Payment Screenshot (covers the whole group)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setPaymentScreenshot(e.target.files[0])}
+                  className="text-xs text-parchment-100/70 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-lantern-500/20 file:text-lantern-300 file:text-xs w-full"
+                />
+              </div>
+              <UtrInput value={utrNumber} onChange={setUtrNumber} />
+            </>
+          )}
+
+          <div className="flex justify-between">
+            <button onClick={() => setSubStep("form")} className="px-6 py-3 rounded-full bg-white/10 text-parchment-50 text-sm font-bold">
+              ← Back
+            </button>
+            <button
+              onClick={openReview}
+              disabled={submitting}
+              className="px-8 py-3 rounded-full bg-lantern-400 text-canopy-950 font-bold text-sm disabled:opacity-50"
+            >
+              Review Details →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showReview && subStep === "checkout" && (
+        <ReviewDetailsModal
+          title={`Group of ${totalMembers} · Leader: ${leader.fullName}`}
+          fields={[
+            {
+              label: "Pass/Tier",
+              value: cartPasses.map((id) => tiers.find((t) => t.id === id)?.name || clubPasses.find((p) => p.id === id)?.name || id).join(", "),
+            },
+            { label: "Leader", value: `${leader.fullName} (${user.email})` },
+            { label: "Members", value: members.map((m) => `${m.fullName} <${m.email}>`).join("; ") || "None — solo group of 1" },
+          ]}
+          files={[{ label: "Your College ID Card", file: idCardFile }, ...(isFree ? [] : [{ label: "Payment Screenshot", file: paymentScreenshot }])]}
+          amount={totalAmount}
+          isFree={isFree}
+          utrNumber={utrNumber}
+          onBack={() => setShowReview(false)}
+          onConfirm={handleSubmit}
+          submitting={submitting}
+          progressMsg={progressMsg}
+          errorMsg={errorMsg}
+        />
       )}
     </div>
   );

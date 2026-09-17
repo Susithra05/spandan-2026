@@ -1,6 +1,7 @@
 // src/components/AdminDashboard.jsx
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
+import { sendNotification } from "../lib/serverApi";
 
 const statusPill = {
   APPROVED: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
@@ -34,6 +35,7 @@ export default function AdminDashboard() {
   const [purchases, setPurchases] = useState([]);
   const [eventRegs, setEventRegs] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -56,10 +58,11 @@ export default function AdminDashboard() {
     const key = passcode.trim();
 
     try {
-      const [purchasesRes, eventsRes, teamsRes] = await Promise.all([
+      const [purchasesRes, eventsRes, teamsRes, groupsRes] = await Promise.all([
         supabase.rpc("get_admin_purchases", { admin_key: key }),
         supabase.rpc("get_admin_event_registrations", { admin_key: key }),
         supabase.rpc("get_admin_team_members", { admin_key: key }),
+        supabase.rpc("get_admin_groups", { admin_key: key }),
       ]);
 
       if (purchasesRes.error) {
@@ -73,10 +76,12 @@ export default function AdminDashboard() {
         setEventRegs(directEvents || []);
         const { data: directTeams } = await supabase.from("team_members").select("*");
         setTeamMembers(directTeams || []);
+        setGroups([]); // groups RLS only allows leaders/members to see their own — admin needs get_admin_groups()
       } else {
         setPurchases(purchasesRes.data || []);
         setEventRegs(eventsRes.data || []);
         setTeamMembers(teamsRes.data || []);
+        setGroups(groupsRes.data || []);
       }
 
       setIsAuthenticated(true);
@@ -100,6 +105,16 @@ export default function AdminDashboard() {
         if (directErr) throw directErr;
       }
       setPurchases((prev) => prev.map((r) => (r.id === id ? { ...r, payment_status: status } : r)));
+
+      // Best-effort email — requires the admin's browser to have an
+      // active Spandan login session (any account) since /api/send-
+      // notification checks for a valid Supabase access token. If
+      // nobody's logged in on this device, the status still updates
+      // fine — only the email is skipped (logged to console).
+      const row = purchases.find((r) => r.id === id);
+      if (row?.email) {
+        sendNotification("status_change", row.email, { fullName: row.full_name, delegateId: row.delegate_id, status });
+      }
     } catch (err) {
       alert("Failed to update status: " + err.message);
     }
@@ -107,6 +122,7 @@ export default function AdminDashboard() {
 
   const teamForEventReg = (eventRegId) => teamMembers.filter((m) => m.event_registration_id === eventRegId);
   const purchaseFor = (purchaseId) => purchases.find((p) => p.id === purchaseId);
+  const groupCodeFor = (groupId) => groups.find((g) => g.id === groupId)?.group_code;
 
   // ---------------- TABLE 1: Passes & Membership ----------------
   const passRows = purchases.filter((p) => p.pass_codes && p.pass_codes.length > 0);
@@ -290,7 +306,12 @@ export default function AdminDashboard() {
               ) : (
                 filteredPassRows.map((row) => (
                   <tr key={row.id} className="hover:bg-white/[0.02] transition">
-                    <td className="px-4 py-3 font-mono font-bold text-lantern-300">{row.delegate_id || "—"}</td>
+                    <td className="px-4 py-3 font-mono font-bold text-lantern-300">
+                      {row.delegate_id || "—"}
+                      {row.group_id && (
+                        <span className="block text-[9px] font-mono font-normal text-mist-400 mt-0.5">👑 {groupCodeFor(row.group_id) || "Group"}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="font-semibold text-parchment-50">{row.full_name || "N/A"}</div>
                       <div className="text-[10px] text-slate-400">{row.college} · {row.year_of_study}</div>
