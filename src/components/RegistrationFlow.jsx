@@ -1,8 +1,9 @@
 // src/components/RegistrationFlow.jsx
 import React, { useState, useMemo, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { generateDelegateId, generateGroupCode, buildGroupDelegateId, normalizeDelegateId, INDIVIDUAL_ID_REGEX, GROUP_ID_REGEX } from "../lib/idGenerator";
-import { provisionGroupMember, sendNotification } from "../lib/serverApi";
+import { normalizeDelegateId, ANY_DELEGATE_ID_REGEX, GROUP_ID_REGEX } from "../lib/idGenerator";
+import { sendNotification, resolveMyDelegateId, recomputePurchaseAmount, submitGroupPurchase } from "../lib/serverApi";
+import { useLiveCatalog, liveEventAccess, liveEventCardOpen, livePassPrice } from "../lib/liveCatalog";
 import {
   tiers,
   clubPasses,
@@ -18,6 +19,13 @@ import {
   UPI_ID,
   UPI_MERCHANT_NAME,
 } from "../data/festData";
+
+// Group event registrations now use this same universal cap (Section
+// 4.1) — any event's roster, team or not, tops out at 25 people.
+const MAX_TEAM_MEMBERS = 25;
+// Group Registration's own member cap (Section 3.1) — leader + up to
+// 14 members = 15 total.
+const MAX_GROUP_MEMBERS = 15;
 
 const CheckIcon = () => (
   <svg className="w-4 h-4 text-lantern-300 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -43,14 +51,18 @@ const onlyDigits = (val, max = 10) => val.replace(/\D/g, "").slice(0, max);
 
 // Shared by PassCheckout (buying for yourself) and GroupPurchaseCheckout
 // (a Group Leader buying the same pass bundle for N people) so pricing
-// logic only lives in one place.
-const computePassesAmount = (cartPasses) => {
+// logic only lives in one place. `catalog`, when supplied, layers live
+// admin-edited prices (Table 3) over the festData.js defaults — the
+// number actually charged is still always recomputed server-side
+// (see recompute_purchase_amount in migration_v7.sql), this is only
+// what gets displayed before that happens.
+const computePassesAmount = (cartPasses, catalog = {}) => {
   let total = 0;
   const tierCode = cartPasses.find((c) => tiers.find((t) => t.id === c));
-  if (tierCode) total += tiers.find((t) => t.id === tierCode)?.price || 0;
+  if (tierCode) total += livePassPrice(catalog, tierCode, tiers.find((t) => t.id === tierCode)?.price || 0);
   cartPasses.forEach((code) => {
     const club = clubPasses.find((p) => p.id === code);
-    if (club) total += club.price;
+    if (club) total += livePassPrice(catalog, code, club.price);
   });
   return total;
 };
@@ -199,7 +211,7 @@ function ReviewDetailsModal({ title, fields, files = [], amount, isFree, utrNumb
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-canopy-950/80 backdrop-blur-sm">
       <div className="min-h-full flex items-start justify-center p-4 py-8">
-        <div className="w-full max-w-lg glow-card p-6 sm:p-8 rounded-3xl space-y-5 my-auto">
+        <div className="w-full max-w-lg glow-card p-6 sm:p-8 rounded-3xl space-y-5 my-auto max-h-[85vh] overflow-y-auto">
         <div className="text-center space-y-1">
           <h3 className="text-xl font-display font-bold text-parchment-50">Review Your Details</h3>
           <p className="text-xs text-parchment-100/60">{title}</p>
@@ -387,7 +399,8 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
   const [result, setResult] = useState(null);
   const [showReview, setShowReview] = useState(false);
 
-  const passesAmount = useMemo(() => computePassesAmount(cartPasses), [cartPasses]);
+  const { catalog } = useLiveCatalog();
+  const passesAmount = useMemo(() => computePassesAmount(cartPasses, catalog), [cartPasses, catalog]);
 
   // Currently no Delegate Tier / Club Pass is ever priced at ₹0, but this
   // keeps the checkout screen future-proof (e.g. a free/promo pass) and
@@ -461,37 +474,61 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
         ({ data: payUrlData } = supabase.storage.from("payment-screenshots").getPublicUrl(payPath));
       }
 
-      step_ = "generating your Delegate ID";
-      const delegateId = await generateDelegateId(cartPasses);
+      step_ = "resolving your Delegate ID";
+      const idResult = await resolveMyDelegateId(cartPasses);
+      const delegateId = idResult.delegate_id;
 
       step_ = "saving your purchase record";
       const passType = cartPasses.some((c) => tiers.find((t) => t.id === c)) ? "tier" : "club";
-      const { error: purchaseErr } = await supabase.from("purchases").insert([
-        {
-          user_id: user.id,
-          delegate_id: delegateId,
-          pass_type: passType,
-          pass_codes: cartPasses,
-          full_name: formData.fullName,
-          email: user.email,
-          phone: cleanPhone,
-          college: formData.college,
-          year_of_study: formData.yearOfStudy,
-          id_card_url: idUrlData.publicUrl,
-          payment_screenshot_url: payUrlData?.publicUrl || null,
-          utr_number: isFree ? null : utrNumber,
-          base_amount: passesAmount,
-          events_amount: 0,
-          total_amount: passesAmount,
-          payment_status: "PENDING_VERIFICATION",
-        },
-      ]);
+      const { data: newPurchase, error: purchaseErr } = await supabase
+        .from("purchases")
+        .insert([
+          {
+            user_id: user.id,
+            delegate_id: delegateId,
+            pass_type: passType,
+            pass_codes: cartPasses,
+            full_name: formData.fullName,
+            email: user.email,
+            phone: cleanPhone,
+            college: formData.college,
+            year_of_study: formData.yearOfStudy,
+            id_card_url: idUrlData.publicUrl,
+            payment_screenshot_url: payUrlData?.publicUrl || null,
+            utr_number: isFree ? null : utrNumber,
+            base_amount: passesAmount,
+            events_amount: 0,
+            total_amount: passesAmount,
+            payment_status: "PENDING_VERIFICATION",
+          },
+        ])
+        .select()
+        .single();
       if (purchaseErr) throw purchaseErr;
+
+      // Server-side authoritative recompute — the browser's passesAmount
+      // above is only ever a display estimate from here on.
+      await recomputePurchaseAmount(newPurchase.id);
 
       setResult({ delegateId, totalAmount: passesAmount });
       setSubStep("success");
       if (refreshOwnedPasses) refreshOwnedPasses();
       sendNotification("pass_purchase", user.email, { fullName: formData.fullName, delegateId, amount: passesAmount });
+      // "Single persistent Delegate ID" — when this purchase updated an
+      // ID the person already had on file (e.g. buying a 2nd pass
+      // changed which prefix they're entitled to), let them know their
+      // OLD printed ID is no longer valid. This new pass itself still
+      // shows as its own pending row on their Profile ("Your Checkouts")
+      // even though the ID is shared with their earlier, already-
+      // approved pass — that row is what carries the per-pass pending
+      // status until the committee verifies this specific purchase.
+      if (idResult.changed && idResult.previous_delegate_id) {
+        sendNotification("delegate_id_updated", user.email, {
+          fullName: formData.fullName,
+          delegateId,
+          previousDelegateId: idResult.previous_delegate_id,
+        });
+      }
     } catch (err) {
       setErrorMsg(`Registration failed while ${step_}: ${err.message}`);
     } finally {
@@ -551,7 +588,7 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
                     </div>
                     <h3 className="text-2xl font-display font-black text-parchment-50">{tier.name}</h3>
                     <div className="text-3xl font-display font-extrabold text-parchment-50">
-                      ₹{tier.price}
+                      ₹{livePassPrice(catalog, tier.id, tier.price)}
                       <span className="text-xs font-body font-normal text-parchment-100/60"> / delegate</span>
                     </div>
                     <ul className="space-y-2 text-xs text-parchment-100/85">
@@ -596,7 +633,7 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
                   <div>
                     <div className="flex justify-between items-start mb-1">
                       <span className="text-[10px] uppercase tracking-wider text-lantern-400 font-bold">{pass.passLabel}</span>
-                      <span className="text-xl font-extrabold text-lantern-300">₹{pass.price}</span>
+                      <span className="text-xl font-extrabold text-lantern-300">₹{livePassPrice(catalog, pass.id, pass.price)}</span>
                     </div>
                     <h3 className="text-lg font-display font-bold text-parchment-50">{pass.name}</h3>
                     <p className="text-xs text-parchment-100/70 mt-1">{pass.desc}</p>
@@ -746,6 +783,7 @@ function PassCheckout({ user, ownedPasses, refreshOwnedPasses, onDoneGoToEvents 
 // STEP 2 — EVENTS CHECKOUT (only reachable once a pass is owned)
 // ============================================================
 function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
+  const { catalog } = useLiveCatalog();
   const [subStep, setSubStep] = useState("browse"); // browse -> checkout -> success
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -778,6 +816,12 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
   // to yourself; becomes the selected group member's user_id in Group
   // ID mode. This is what gets written as purchases.user_id.
   const [targetUserId, setTargetUserId] = useState(user.id);
+  // The email that ends up on the purchases row — purchases.email is
+  // NOT NULL, so in Group ID mode this must be the MEMBER's own email
+  // (from search_group_members, which now returns it — see
+  // migration_v7.sql), never null. Defaults to the caller's own email
+  // for the individual/self path.
+  const [targetEmail, setTargetEmail] = useState(user.email);
 
   // Once a Delegate ID resolves to a known, verified identity (either
   // via autocomplete selection or the Validate button), we snapshot
@@ -827,11 +871,13 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
     setShowIdSuggestions(false);
     if (mode === "individual") {
       setTargetUserId(user.id);
+      setTargetEmail(user.email);
       setDelegateId(myDelegateIds[0]?.delegate_id || "");
       setParticipantName(myDelegateIds[0]?.full_name || "");
       setParticipantWhatsapp(myDelegateIds[0]?.phone || "");
     } else {
       setTargetUserId(null);
+      setTargetEmail(null);
       setDelegateId("");
       setParticipantName("");
       setParticipantWhatsapp("");
@@ -863,12 +909,8 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
     const subLabel = subEvent ? subEventLabel(subEvent) : null;
     const key = subLabel ? `${event.id}:${subLabel}` : event.id;
     if (cartEvents.some((e) => e.key === key)) return;
-    const access = getEventAccess(event, ownedPasses, subEvent);
+    const access = liveEventAccess(getEventAccess, event, ownedPasses, subEvent, catalog);
     const team = isTeamEvent(event);
-    // This is only a starting suggestion — team rosters are fully
-    // flexible now, members can be freely added or removed, and the
-    // price recalculates live as perPersonPrice × current roster size.
-    const suggestedSize = event.minTeamSize || (team ? 2 : 0);
     const entry = {
       key,
       eventId: event.id,
@@ -877,8 +919,13 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
       price: access.price,
       perPersonPrice: access.price,
       isTeam: team,
-      suggestedTeamSize: suggestedSize,
-      members: team ? Array.from({ length: suggestedSize || 1 }, () => ({ name: "", whatsapp: "", email: "", delegateId: "" })) : [],
+      // "+ Add Team Member" is now available on every event, not just
+      // Sports/Informals (Section 4.1) — every cart entry starts with
+      // an EMPTY roster; nothing is auto-expanded any more. For a
+      // genuine team event the roster is required before checkout
+      // (see validate()); for any other event it's an optional way to
+      // register teammates alongside you.
+      members: [],
     };
     setCartEvents((prev) => [...prev, entry]);
     if (team) setExpandedTeamKey(key);
@@ -890,15 +937,25 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
   };
 
   const addMemberRow = (key) => {
-    setCartEvents((prev) => prev.map((e) => (e.key === key ? { ...e, members: [...e.members, { name: "", whatsapp: "", email: "", delegateId: "" }] } : e)));
+    setCartEvents((prev) =>
+      prev.map((e) => {
+        if (e.key !== key) return e;
+        if (e.members.length >= MAX_TEAM_MEMBERS) {
+          alert(`Maximum limit of ${MAX_TEAM_MEMBERS} members reached`);
+          return e;
+        }
+        return { ...e, members: [...e.members, { name: "", whatsapp: "", email: "", delegateId: "" }] };
+      })
+    );
   };
   const removeMemberRow = (key, idx) => {
     setCartEvents((prev) =>
       prev.map((e) => {
         if (e.key !== key) return e;
-        // No more hardcoded minimum — any row can be removed, down to a
-        // single remaining member (a team can't register with zero people).
-        if (e.members.length <= 1) return e;
+        // Removable all the way down to zero now — the roster is
+        // optional for non-team events, and for genuine team events
+        // the "at least one member" rule is enforced at checkout
+        // (validate()), not by locking the UI.
         return { ...e, members: e.members.filter((_, i) => i !== idx) };
       })
     );
@@ -987,10 +1044,10 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
         const { data } = await supabase.rpc("search_group_members", { p_group_id: selectedGroupId, p_prefix: delegateId });
         const found = (data || []).find((m) => m.delegate_id === normalizeDelegateId(delegateId));
         if (!found) return setSelfValidation("not_in_group");
-        applyIdentitySelection(found.delegate_id, found.full_name, found.phone, found.user_id);
+        applyIdentitySelection(found.delegate_id, found.full_name, found.phone, found.user_id, found.email);
         return setSelfValidation("valid");
       }
-      applyIdentitySelection(match.delegate_id, match.full_name, match.phone, match.user_id);
+      applyIdentitySelection(match.delegate_id, match.full_name, match.phone, match.user_id, match.email);
       return setSelfValidation("valid");
     }
 
@@ -1003,14 +1060,18 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
     setSelfValidation(result.status);
     setDelegateVerified(result.status === "valid");
     if (result.status === "valid") {
-      applyIdentitySelection(normalizeDelegateId(delegateId), result.name, result.phone, user.id);
+      applyIdentitySelection(normalizeDelegateId(delegateId), result.name, result.phone, user.id, user.email);
     }
   };
 
   // Shared by the autocomplete dropdown (both modes) and verifySelfId
   // — locks in the canonical identity so hand-edited mismatches can be
-  // caught at submit time.
-  const applyIdentitySelection = (id, name, phone, ownerUserId) => {
+  // caught at submit time. `email` is required so the purchases row
+  // for a Group-ID registration always has a real email on file
+  // (purchases.email is NOT NULL) — pass user.email for the
+  // individual/self path, the member's own email (from
+  // search_group_members) for the Group ID path.
+  const applyIdentitySelection = (id, name, phone, ownerUserId, email) => {
     setDelegateId(id);
     setParticipantName(name || "");
     setParticipantWhatsapp(phone || "");
@@ -1018,6 +1079,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
     setSelfValidation("valid");
     setIdentitySnapshot({ name: name || "", phone: phone || "" });
     setTargetUserId(ownerUserId);
+    setTargetEmail(email || null);
     setShowIdSuggestions(false);
   };
 
@@ -1036,6 +1098,13 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
       setErrorMsg("Add at least one event to your cart.");
       return false;
     }
+    for (const e of cartEvents) {
+      const row = catalog[e.key];
+      if (row && row.registrations_open === false) {
+        setErrorMsg(`Registrations for "${e.title}" are now full. Please remove it from your cart to continue.`);
+        return false;
+      }
+    }
     if (registrationMode === "group" && !selectedGroupId) {
       setErrorMsg("Select which group you're registering a member from.");
       return false;
@@ -1045,17 +1114,21 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
       return false;
     }
     const idFormatOk =
-      registrationMode === "group" ? GROUP_ID_REGEX.test(normalizeDelegateId(delegateId)) : INDIVIDUAL_ID_REGEX.test(normalizeDelegateId(delegateId));
+      registrationMode === "group" ? GROUP_ID_REGEX.test(normalizeDelegateId(delegateId)) : ANY_DELEGATE_ID_REGEX.test(normalizeDelegateId(delegateId));
     if (!idFormatOk) {
       setErrorMsg(
         registrationMode === "group"
           ? "Group Delegate IDs must be 13 characters, formatted like G001-SP000001."
-          : "Delegate IDs must be exactly 8 characters."
+          : "Delegate IDs must be either 8 characters (individual) or 13 characters formatted like G001-SP000001 (group members)."
       );
       return false;
     }
     if (!targetUserId || delegateVerified !== true) {
       setErrorMsg('Please validate the Delegate ID (click "Validate") before checking out.');
+      return false;
+    }
+    if (registrationMode === "group" && !targetEmail) {
+      setErrorMsg("Couldn't resolve this member's email on file. Please re-validate the Delegate ID.");
       return false;
     }
     if (!participantName.trim()) {
@@ -1089,11 +1162,15 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
     }
 
     for (const e of cartEvents) {
-      if (!e.isTeam) continue;
-      if (e.members.length < 1) {
+      if (e.isTeam && e.members.length < 1) {
         setErrorMsg(`${e.title} needs at least one team member.`);
         return false;
       }
+      if (e.members.length > MAX_TEAM_MEMBERS) {
+        setErrorMsg(`${e.title}: maximum limit of ${MAX_TEAM_MEMBERS} team members reached.`);
+        return false;
+      }
+      const seenEmails = new Set([(targetEmail || user.email || "").trim().toLowerCase()].filter(Boolean));
       for (const m of e.members) {
         if (!m.name || !m.whatsapp || !m.email || !m.delegateId) {
           setErrorMsg(`Please complete every team member's details (including email) for ${e.title}.`);
@@ -1103,6 +1180,12 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
           setErrorMsg(`Please validate every team member's Delegate ID for ${e.title} before checking out.`);
           return false;
         }
+        const normEmail = m.email.trim().toLowerCase();
+        if (seenEmails.has(normEmail)) {
+          setErrorMsg(`Duplicate email "${m.email}" in the team for ${e.title} — each team member (and you) needs a different email.`);
+          return false;
+        }
+        seenEmails.add(normEmail);
       }
     }
     return true;
@@ -1139,7 +1222,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
             pass_type: null,
             pass_codes: [],
             full_name: participantName,
-            email: registrationMode === "group" ? null : user.email,
+            email: targetEmail || user.email,
             phone: cleanPhone,
             college: myDelegateIds[0]?.college || "",
             id_card_url: null,
@@ -1167,7 +1250,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
               sub_event: e.subEvent,
               price: entryPrice(e),
               is_team_event: e.isTeam,
-              team_size: e.isTeam ? e.members.length : null,
+              team_size: e.members.length > 0 ? e.members.length : null,
               delegate_id: delegateId.trim().toUpperCase(),
               participant_name: participantName,
               participant_whatsapp: cleanPhone,
@@ -1178,8 +1261,8 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
           .single();
         if (evErr) throw evErr;
 
-        if (e.isTeam && e.members.length > 0) {
-          step_ = `saving the team roster for "${e.title}"`;
+        if (e.members.length > 0) {
+          step_ = `saving the team member details for "${e.title}"`;
           const rows = e.members.map((m) => ({
             event_registration_id: evReg.id,
             full_name: m.name,
@@ -1192,6 +1275,11 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
           if (teamErr) throw teamErr;
         }
       }
+
+      // Server-side authoritative recompute of base/events/total from
+      // the live price catalog — the number kept forever is never the
+      // one the browser sent.
+      await recomputePurchaseAmount(purchase.id);
 
       setResult({ totalAmount: eventsAmount, count: cartEvents.length });
       setSubStep("success");
@@ -1338,7 +1426,8 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                   <p className="col-span-full text-center text-sm text-parchment-100/50 py-8">No events match your search.</p>
                 )}
                 {filteredEvents.map((ev) => {
-                  const access = getEventAccess(ev, ownedPasses);
+                  const access = liveEventAccess(getEventAccess, ev, ownedPasses, null, catalog);
+                  const cardOpen = liveEventCardOpen(ev, catalog);
                   const hasSub = ev.subEvents && ev.subEvents.length > 0;
                   const isFormOnly = FORM_ONLY_EVENT_IDS.includes(ev.id);
 
@@ -1353,6 +1442,11 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                   {isFormOnly && (
                     <span className="absolute top-3 right-3 z-10 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">
                       No Pass Needed
+                    </span>
+                  )}
+                  {access.unlocked && !cardOpen && !isFormOnly && (
+                    <span className="absolute top-3 right-3 z-10 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-red-500/15 text-red-300 border border-red-500/40">
+                      Registrations Full
                     </span>
                   )}
 
@@ -1390,11 +1484,13 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                         const subLabel = subEventLabel(sub);
                         const key = `${ev.id}:${subLabel}`;
                         const inCart = cartEvents.some((e) => e.key === key);
-                        const subAccess = getEventAccess(ev, ownedPasses, sub);
+                        const subAccess = liveEventAccess(getEventAccess, ev, ownedPasses, sub, catalog);
+                        const subDisabled = !access.unlocked || !subAccess.registrationsOpen;
                         return (
                           <button
                             key={idx}
-                            disabled={!access.unlocked}
+                            disabled={subDisabled}
+                            title={!subAccess.registrationsOpen ? "Registrations closed for this event" : ""}
                             onClick={() => (inCart ? removeEventFromCart(key) : addEventToCart(ev, sub))}
                             className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition border disabled:opacity-40 disabled:cursor-not-allowed ${
                               inCart ? "bg-lantern-400 text-canopy-950 border-lantern-400 font-bold" : "bg-canopy-950/60 border-white/10 text-slate-300 hover:bg-white/10"
@@ -1403,16 +1499,17 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                             {inCart ? "✓ " : "+ "}
                             {subLabel}
                             {typeof sub === "object" ? ` · ${subAccess.price > 0 ? `₹${subAccess.price}` : "Free"}` : ""}
+                            {!subAccess.registrationsOpen ? " (Full)" : ""}
                           </button>
                         );
                       })}
                     </div>
                   ) : (
                     <button
-                      disabled={!access.unlocked}
+                      disabled={!access.unlocked || !cardOpen}
                       onClick={() => (cartEvents.some((e) => e.key === ev.id) ? removeEventFromCart(ev.id) : addEventToCart(ev))}
                       className={`w-full py-2 rounded-xl text-xs font-bold transition disabled:cursor-not-allowed flex items-center justify-center gap-1.5 ${
-                        !access.unlocked
+                        !access.unlocked || !cardOpen
                           ? "bg-white/5 text-parchment-100/50"
                           : cartEvents.some((e) => e.key === ev.id)
                           ? "bg-lantern-400 text-canopy-950"
@@ -1427,6 +1524,8 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                           </svg>
                           Buy Valid Pass to Unlock
                         </>
+                      ) : !cardOpen ? (
+                        "Registrations Full"
                       ) : cartEvents.some((e) => e.key === ev.id) ? (
                         "✓ Added"
                       ) : (
@@ -1466,14 +1565,13 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                     </div>
                   </div>
 
-                  {e.isTeam && (
-                    <div className="mt-3 pl-2 border-l-2 border-lantern-500/20 space-y-2">
+                  <div className="mt-3 pl-2 border-l-2 border-lantern-500/20 space-y-2">
                       <p className="text-[10px] text-parchment-100/60 uppercase tracking-wider">
-                        Team Roster ({e.members.length}) — add as many members as your team needs
-                        {e.suggestedTeamSize ? ` (suggested: ${e.suggestedTeamSize})` : ""}
+                        {e.isTeam
+                          ? `Team Member (${e.members.length}) — add as many members as your team needs`
+                          : `Team Member (${e.members.length}) — optional, add anyone registering alongside you`}
                       </p>
                       {e.members.map((m, idx) => {
-                        const canRemove = e.members.length > 1;
                         const suggestKey = `${e.key}:${idx}`;
                         return (
                           <div key={idx} className="space-y-1">
@@ -1547,9 +1645,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                               </button>
                               <button
                                 onClick={() => removeMemberRow(e.key, idx)}
-                                disabled={!canRemove}
-                                title={!canRemove ? "A team needs at least one member" : "Remove"}
-                                className="text-red-400 text-xs hover:underline justify-self-start sm:justify-self-center disabled:text-slate-600 disabled:no-underline disabled:cursor-not-allowed"
+                                className="text-red-400 text-xs hover:underline justify-self-start sm:justify-self-center"
                               >
                                 Remove
                               </button>
@@ -1569,11 +1665,14 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                           </div>
                         );
                       })}
-                      <button onClick={() => addMemberRow(e.key)} className="text-lantern-300 text-xs font-semibold hover:underline">
+                      <button
+                        onClick={() => addMemberRow(e.key)}
+                        disabled={e.members.length >= MAX_TEAM_MEMBERS}
+                        className="text-lantern-300 text-xs font-semibold hover:underline disabled:text-slate-600 disabled:no-underline disabled:cursor-not-allowed"
+                      >
                         + Add Team Member
                       </button>
                     </div>
-                  )}
                 </div>
               ))}
               <div className="flex justify-between items-center pt-2 text-sm font-bold">
@@ -1651,7 +1750,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
             <div className="flex gap-2 relative">
               <input
                 value={delegateId}
-                maxLength={registrationMode === "group" ? 13 : 8}
+                maxLength={13}
                 onChange={(e) => {
                   const v = e.target.value.toUpperCase();
                   setDelegateId(v);
@@ -1677,7 +1776,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                     <button
                       type="button"
                       key={s.delegate_id}
-                      onClick={() => applyIdentitySelection(s.delegate_id, s.full_name, s.phone, user.id)}
+                      onClick={() => applyIdentitySelection(s.delegate_id, s.full_name, s.phone, user.id, user.email)}
                       className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex justify-between gap-2"
                     >
                       <span className="font-mono text-lantern-300">{s.delegate_id}</span>
@@ -1693,7 +1792,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                     <button
                       type="button"
                       key={s.delegate_id}
-                      onClick={() => applyIdentitySelection(s.delegate_id, s.full_name, s.phone, s.user_id)}
+                      onClick={() => applyIdentitySelection(s.delegate_id, s.full_name, s.phone, s.user_id, s.email)}
                       className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex justify-between gap-2"
                     >
                       <span className="font-mono text-lantern-300">{s.delegate_id}</span>
@@ -1805,10 +1904,18 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
 // the service role key (see api/_supabaseAdmin.js).
 // ============================================================
 function GroupPurchaseCheckout({ user, myGroups, refreshMyGroups, refreshOwnedPasses }) {
+  const { catalog } = useLiveCatalog();
   const [subStep, setSubStep] = useState("form"); // form -> checkout -> success
   const [cartPasses, setCartPasses] = useState([]);
   const [leader, setLeader] = useState({ fullName: "", phone: "", college: "", yearOfStudy: "1st Year" });
-  const [members, setMembers] = useState([]); // [{ email, fullName, phone }]
+  // Each member: { email, fullName, phone, college, yearOfStudy,
+  // idCardFile, editPass, passCodes }. college/yearOfStudy default to
+  // the leader's current values at the moment the row is added
+  // (Section 3.1 — "auto-filled with the Group Leader's inputs by
+  // default, but editable per member"), then stay independently
+  // editable. `editPass` toggles whether this member overrides the
+  // group's default Pass/Tier with their own combination (Section 3.2).
+  const [members, setMembers] = useState([]);
   const [idCardFile, setIdCardFile] = useState(null);
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
   const [utrNumber, setUtrNumber] = useState("");
@@ -1829,12 +1936,53 @@ function GroupPurchaseCheckout({ user, myGroups, refreshMyGroups, refreshOwnedPa
     });
   };
 
-  const perPersonAmount = useMemo(() => computePassesAmount(cartPasses), [cartPasses]);
+  const toggleMemberPass = (idx, id) => {
+    const isTier = !!tiers.find((t) => t.id === id);
+    setMembers((prev) =>
+      prev.map((m, i) => {
+        if (i !== idx) return m;
+        const current = m.passCodes || [];
+        let next;
+        if (isTier) {
+          const withoutTiers = current.filter((p) => !tiers.find((t) => t.id === p));
+          next = current.includes(id) ? withoutTiers : [...withoutTiers, id];
+        } else {
+          next = current.includes(id) ? current.filter((p) => p !== id) : [...current, id];
+        }
+        return { ...m, passCodes: next };
+      })
+    );
+  };
+
+  const leaderAmount = useMemo(() => computePassesAmount(cartPasses, catalog), [cartPasses, catalog]);
+  const memberAmount = (m) => computePassesAmount(m.editPass && m.passCodes?.length > 0 ? m.passCodes : cartPasses, catalog);
   const totalMembers = 1 + members.length; // leader counts as Member 1
-  const totalAmount = perPersonAmount * totalMembers;
+  const totalAmount = useMemo(
+    () => leaderAmount + members.reduce((sum, m) => sum + memberAmount(m), 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [leaderAmount, members, catalog]
+  );
   const isFree = cartPasses.length > 0 && totalAmount === 0;
 
-  const addMember = () => setMembers((prev) => [...prev, { email: "", fullName: "", phone: "" }]);
+  const addMember = () => {
+    if (members.length >= MAX_GROUP_MEMBERS - 1) {
+      alert(`Maximum limit of ${MAX_GROUP_MEMBERS} members reached`);
+      return;
+    }
+    setMembers((prev) => [
+      ...prev,
+      {
+        email: "",
+        fullName: "",
+        phone: "",
+        college: leader.college,
+        yearOfStudy: leader.yearOfStudy,
+        idCardFile: null,
+        editPass: false,
+        passCodes: [],
+      },
+    ]);
+  };
   const removeMember = (idx) => setMembers((prev) => prev.filter((_, i) => i !== idx));
   const updateMember = (idx, field, value) => setMembers((prev) => prev.map((m, i) => (i === idx ? { ...m, [field]: value } : m)));
 
@@ -1863,6 +2011,20 @@ function GroupPurchaseCheckout({ user, myGroups, refreshMyGroups, refreshOwnedPa
       }
       if (!m.fullName.trim()) {
         setErrorMsg("Enter a name for every group member.");
+        return false;
+      }
+      // Phone Number and ID Card uploads are compulsory for every
+      // group member, not just the leader (Section 3.1).
+      if (onlyDigits(m.phone).length !== 10) {
+        setErrorMsg(`Enter a valid 10-digit phone number for ${m.fullName || m.email}.`);
+        return false;
+      }
+      if (!m.idCardFile) {
+        setErrorMsg(`Upload a College ID card photo for ${m.fullName || m.email}.`);
+        return false;
+      }
+      if (m.editPass && (!m.passCodes || m.passCodes.length === 0)) {
+        setErrorMsg(`${m.fullName || m.email} has "Edit Pass" on but no pass selected — pick one or turn it back off.`);
         return false;
       }
     }
@@ -1897,15 +2059,6 @@ function GroupPurchaseCheckout({ user, myGroups, refreshMyGroups, refreshOwnedPa
     setSubmitting(true);
     setErrorMsg("");
     try {
-      setProgressMsg("Creating your group...");
-      const groupCode = await generateGroupCode();
-      const { data: group, error: groupErr } = await supabase
-        .from("groups")
-        .insert([{ group_code: groupCode, leader_user_id: user.id, leader_name: leader.fullName, leader_email: user.email }])
-        .select()
-        .single();
-      if (groupErr) throw groupErr;
-
       let payUrlData = null;
       if (!isFree) {
         setProgressMsg("Uploading payment screenshot...");
@@ -1923,87 +2076,62 @@ function GroupPurchaseCheckout({ user, myGroups, refreshMyGroups, refreshOwnedPa
       if (idErr) throw idErr;
       const { data: idUrlData } = supabase.storage.from("payment-screenshots").getPublicUrl(idPath);
 
-      const passType = cartPasses.some((c) => tiers.find((t) => t.id === c)) ? "tier" : "club";
-      const createdMembers = [];
-
-      // Member 1 is always the leader themselves.
-      setProgressMsg(`Generating Delegate ID 1 of ${totalMembers}...`);
-      const leaderBaseId = await generateDelegateId(cartPasses);
-      const leaderFullId = buildGroupDelegateId(groupCode, leaderBaseId);
-      const { error: leaderPurchaseErr } = await supabase.from("purchases").insert([
-        {
-          user_id: user.id,
-          group_id: group.id,
-          delegate_id: leaderFullId,
-          pass_type: passType,
-          pass_codes: cartPasses,
-          full_name: leader.fullName,
-          email: user.email,
-          phone: onlyDigits(leader.phone),
-          college: leader.college,
-          year_of_study: leader.yearOfStudy,
-          id_card_url: idUrlData.publicUrl,
-          payment_screenshot_url: payUrlData?.publicUrl || null,
-          utr_number: isFree ? null : utrNumber,
-          base_amount: perPersonAmount,
-          events_amount: 0,
-          total_amount: perPersonAmount,
-          payment_status: "PENDING_VERIFICATION",
-        },
-      ]);
-      if (leaderPurchaseErr) throw leaderPurchaseErr;
-      createdMembers.push({ email: user.email, fullName: leader.fullName, delegateId: leaderFullId });
-
-      // Every other member: provision (or find) their account, then
-      // mint their own group-prefixed Delegate ID and purchase row.
+      // Every member's ID card is compulsory too — uploaded here,
+      // client-side, same bucket, before the atomic submit below.
+      const memberPayloads = [];
       for (let i = 0; i < members.length; i++) {
         const m = members[i];
-        setProgressMsg(`Setting up account ${i + 2} of ${totalMembers} (${m.email})...`);
-        const { user_id: memberUserId } = await provisionGroupMember({
+        setProgressMsg(`Uploading ID card ${i + 1} of ${members.length} (${m.fullName})...`);
+        const mExt = m.idCardFile.name.split(".").pop();
+        const mPath = `id_cards/id_member_${user.id}_${i}_${Date.now()}.${mExt}`;
+        const { error: mIdErr } = await supabase.storage.from("payment-screenshots").upload(mPath, m.idCardFile);
+        if (mIdErr) throw mIdErr;
+        const { data: mIdUrlData } = supabase.storage.from("payment-screenshots").getPublicUrl(mPath);
+        memberPayloads.push({
           email: m.email.trim(),
           fullName: m.fullName,
-          groupId: group.id,
+          phone: onlyDigits(m.phone),
+          college: m.college || leader.college,
+          yearOfStudy: m.yearOfStudy || leader.yearOfStudy,
+          idCardUrl: mIdUrlData.publicUrl,
+          passCodes: m.editPass && m.passCodes?.length > 0 ? m.passCodes : undefined,
         });
-
-        setProgressMsg(`Generating Delegate ID ${i + 2} of ${totalMembers}...`);
-        const baseId = await generateDelegateId(cartPasses);
-        const fullId = buildGroupDelegateId(groupCode, baseId);
-
-        const { error: memberPurchaseErr } = await supabase.from("purchases").insert([
-          {
-            user_id: memberUserId,
-            group_id: group.id,
-            delegate_id: fullId,
-            pass_type: passType,
-            pass_codes: cartPasses,
-            full_name: m.fullName,
-            email: m.email.trim().toLowerCase(),
-            phone: onlyDigits(m.phone) || null,
-            college: leader.college,
-            year_of_study: leader.yearOfStudy,
-            id_card_url: null,
-            payment_screenshot_url: payUrlData?.publicUrl || null,
-            utr_number: isFree ? null : utrNumber,
-            base_amount: perPersonAmount,
-            events_amount: 0,
-            total_amount: perPersonAmount,
-            payment_status: "PENDING_VERIFICATION",
-          },
-        ]);
-        if (memberPurchaseErr) throw memberPurchaseErr;
-        createdMembers.push({ email: m.email, fullName: m.fullName, delegateId: fullId });
-
-        sendNotification("group_invite", m.email, { fullName: m.fullName, groupCode, delegateId: fullId, leaderName: leader.fullName });
       }
 
-      sendNotification("pass_purchase", user.email, { fullName: leader.fullName, delegateId: leaderFullId, amount: totalAmount });
+      // Everything else — account provisioning, the group row, every
+      // purchase row, price computation — happens as ONE atomic
+      // server-side operation. Either the whole group is saved, or
+      // none of it is; see api/submit-group-purchase.js.
+      setProgressMsg(`Saving your group of ${totalMembers}...`);
+      const response = await submitGroupPurchase({
+        leader: {
+          fullName: leader.fullName,
+          phone: onlyDigits(leader.phone),
+          college: leader.college,
+          yearOfStudy: leader.yearOfStudy,
+          passCodes: cartPasses,
+          idCardUrl: idUrlData.publicUrl,
+        },
+        paymentScreenshotUrl: payUrlData?.publicUrl || null,
+        utrNumber: isFree ? null : utrNumber,
+        isFree,
+        members: memberPayloads,
+      });
 
-      setResult({ groupCode, members: createdMembers, totalAmount });
+      const createdMembers = (response.members || []).map((m) => ({
+        email: m.email,
+        fullName: m.full_name,
+        delegateId: m.delegate_id,
+      }));
+
+      sendNotification("pass_purchase", user.email, { fullName: leader.fullName, delegateId: response.leaderDelegateId, amount: totalAmount });
+
+      setResult({ groupCode: response.groupCode, members: createdMembers, totalAmount });
       setSubStep("success");
       if (refreshMyGroups) refreshMyGroups();
       if (refreshOwnedPasses) refreshOwnedPasses();
     } catch (err) {
-      setErrorMsg(`Group registration failed while setting things up: ${err.message}`);
+      setErrorMsg(`Group registration failed: ${err.message}`);
     } finally {
       setSubmitting(false);
       setProgressMsg("");
@@ -2081,7 +2209,7 @@ function GroupPurchaseCheckout({ user, myGroups, refreshMyGroups, refreshOwnedPa
                   }`}
                 >
                   <span className="font-bold text-parchment-50 block">{p.name}</span>
-                  <span className="block text-parchment-100/60">₹{p.price} / person</span>
+                  <span className="block text-parchment-100/60">₹{livePassPrice(catalog, p.id, p.price)} / person</span>
                 </button>
               ))}
             </div>
@@ -2133,48 +2261,114 @@ function GroupPurchaseCheckout({ user, myGroups, refreshMyGroups, refreshOwnedPa
 
           <div className="space-y-3 border-t border-white/10 pt-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-parchment-100/80">Group Members ({members.length})</p>
-              <button type="button" onClick={addMember} className="text-lantern-300 text-xs font-semibold hover:underline">
+              <p className="text-xs font-semibold text-parchment-100/80">Group Members ({members.length} / {MAX_GROUP_MEMBERS - 1})</p>
+              <button
+                type="button"
+                onClick={addMember}
+                disabled={members.length >= MAX_GROUP_MEMBERS - 1}
+                className="text-lantern-300 text-xs font-semibold hover:underline disabled:text-slate-600 disabled:no-underline disabled:cursor-not-allowed"
+              >
                 + Add Member
               </button>
             </div>
             <p className="text-[10px] text-parchment-100/50">
               Each email gets its own Spandan account automatically (or is linked to their existing one) — they can log in via Google, or use
-              "Forgot Password" to set one.
+              "Forgot Password" to set one. Phone number and College ID card are required for every member. Group of up to {MAX_GROUP_MEMBERS}{" "}
+              total (including you).
             </p>
             {members.map((m, idx) => (
-              <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1.2fr_1fr_1fr_auto] gap-2 items-center">
-                <input
-                  placeholder="Member Email"
-                  value={m.email}
-                  onChange={(e) => updateMember(idx, "email", e.target.value)}
-                  className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
-                />
-                <input
-                  placeholder="Full Name"
-                  value={m.fullName}
-                  onChange={(e) => updateMember(idx, "fullName", e.target.value)}
-                  className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
-                />
-                <input
-                  placeholder="Phone (optional)"
-                  value={m.phone}
-                  maxLength={10}
-                  inputMode="numeric"
-                  onChange={(e) => updateMember(idx, "phone", onlyDigits(e.target.value))}
-                  className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
-                />
-                <button type="button" onClick={() => removeMember(idx)} className="text-red-400 text-xs hover:underline">
-                  Remove
-                </button>
+              <div key={idx} className="rounded-xl border border-white/10 bg-canopy-950/40 p-3 space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    placeholder="Member Email"
+                    value={m.email}
+                    onChange={(e) => updateMember(idx, "email", e.target.value)}
+                    className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+                  />
+                  <input
+                    placeholder="Full Name"
+                    value={m.fullName}
+                    onChange={(e) => updateMember(idx, "fullName", e.target.value)}
+                    className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    placeholder="Phone Number"
+                    value={m.phone}
+                    maxLength={10}
+                    inputMode="numeric"
+                    onChange={(e) => updateMember(idx, "phone", onlyDigits(e.target.value))}
+                    className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+                  />
+                  <input
+                    placeholder="College"
+                    value={m.college}
+                    onChange={(e) => updateMember(idx, "college", e.target.value)}
+                    className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-center">
+                  <select
+                    value={m.yearOfStudy}
+                    onChange={(e) => updateMember(idx, "yearOfStudy", e.target.value)}
+                    className="px-3 py-2 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-xs"
+                  >
+                    {["1st Year", "2nd Year", "3rd Year", "4th Year", "Intern", "PG/Resident"].map((y) => (
+                      <option key={y}>{y}</option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={() => removeMember(idx)} className="text-red-400 text-xs hover:underline justify-self-end">
+                    Remove Member
+                  </button>
+                </div>
+                <div>
+                  <label className="text-[10px] text-parchment-100/70 block mb-1">{m.fullName || "This member"}'s College ID Card Photo</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => updateMember(idx, "idCardFile", e.target.files[0])}
+                    className="text-[11px] text-parchment-100/70 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-lantern-500/20 file:text-lantern-300 file:text-[11px] w-full"
+                  />
+                </div>
+
+                <div className="pt-1 border-t border-white/5">
+                  <label className="flex items-center gap-2 text-[11px] text-parchment-100/70">
+                    <input
+                      type="checkbox"
+                      checked={m.editPass}
+                      onChange={(e) => updateMember(idx, "editPass", e.target.checked)}
+                      className="accent-lantern-400"
+                    />
+                    Edit Pass — give this member a different Pass/Tier than the rest of the group
+                  </label>
+                  {m.editPass ? (
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {[...tiers, ...clubPasses].map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => toggleMemberPass(idx, p.id)}
+                          className={`text-left px-3 py-2 rounded-lg border text-[11px] transition ${
+                            (m.passCodes || []).includes(p.id) ? "border-lantern-400 bg-lantern-500/10" : "border-white/10 bg-canopy-950/40 hover:border-white/20"
+                          }`}
+                        >
+                          <span className="font-bold text-parchment-50 block">{p.name}</span>
+                          <span className="block text-parchment-100/60">₹{livePassPrice(catalog, p.id, p.price)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-parchment-100/40 mt-1">Using the group default: {cartPasses.length > 0 ? cartPasses.map((id) => [...tiers, ...clubPasses].find((p) => p.id === id)?.name || id).join(", ") : "—"}</p>
+                  )}
+                  <p className="text-[11px] text-lantern-300 font-semibold mt-1">₹{memberAmount(m)}</p>
+                </div>
               </div>
             ))}
           </div>
 
           <div className="bg-canopy-950/60 rounded-2xl p-4 flex justify-between items-center text-sm font-bold">
-            <span className="text-parchment-50">
-              Total ({totalMembers} member{totalMembers > 1 ? "s" : ""} × ₹{perPersonAmount})
-            </span>
+            <span className="text-parchment-50">Total ({totalMembers} member{totalMembers > 1 ? "s" : ""})</span>
             <span className="text-lantern-300">{isFree ? "Free (₹0)" : `₹${totalAmount}`}</span>
           </div>
 

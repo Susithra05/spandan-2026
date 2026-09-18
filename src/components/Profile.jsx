@@ -245,11 +245,19 @@ export default function Profile({ user, setActiveTab }) {
 
   const activeDelegateId = purchases.find((p) => p.delegate_id)?.delegate_id;
   const primaryPurchase = purchases.find((p) => p.delegate_id);
+  // Every purchase now shares ONE canonical Delegate ID (Section 2.3) —
+  // buying a 2nd/3rd pass updates that same ID in place rather than
+  // minting a disconnected new one. The card above always reflects
+  // your MOST RECENT purchase's own status, so a newly bought pass
+  // shows as pending right here even though the ID itself is the same
+  // one already printed on an earlier, already-approved pass — "Your
+  // Checkouts" below lists every purchase's own status individually.
+  const passPurchases = purchases.filter((p) => p.pass_codes && p.pass_codes.length > 0 && p.delegate_id);
+  const hasMultiplePassPurchases = passPurchases.length > 1;
 
-  // Look up each event's own status via its parent purchase (events are
-  // bought in their own separate checkout, so their status is independent
-  // of the pass purchase's status).
-  const statusForPurchase = (purchaseId) => purchases.find((p) => p.id === purchaseId)?.payment_status || "PENDING_VERIFICATION";
+  // Each event registration now carries its OWN status (Section 5.1 —
+  // it's no longer just inherited from its parent purchase).
+  const statusForEvent = (e) => e.payment_status || "PENDING_VERIFICATION";
 
   return (
     <div className="space-y-10 max-w-4xl mx-auto">
@@ -287,6 +295,12 @@ export default function Profile({ user, setActiveTab }) {
               <div className="mt-4 pt-4 border-t border-white/15">
                 <EditableIdentityFields purchase={primaryPurchase} onSaved={refresh} />
               </div>
+              {hasMultiplePassPurchases && (
+                <p className="mt-3 text-[10px] text-parchment-100/50 leading-relaxed">
+                  This Delegate ID stays the same across every pass you buy — the status above is for your newest purchase. See "Your Checkouts"
+                  below for each pass's own approval status.
+                </p>
+              )}
             </div>
           ) : (
             <div className="glow-card p-8 rounded-3xl text-center space-y-3 max-w-md mx-auto">
@@ -364,7 +378,7 @@ export default function Profile({ user, setActiveTab }) {
               <h3 className="text-lg font-display font-bold text-parchment-50">Registered Events ({events.length})</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {events.map((e) => {
-                  const status = statusForPurchase(e.purchase_id);
+                  const status = statusForEvent(e);
                   return (
                     <div key={e.id} className="glow-card p-4 rounded-2xl text-xs space-y-2">
                       <div className="text-parchment-50 font-semibold">{e.event_title}</div>

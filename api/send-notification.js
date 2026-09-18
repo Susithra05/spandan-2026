@@ -41,6 +41,15 @@ const TEMPLATES = {
       <p>Check your inbox for a separate email to set your password, or sign in with Google using this same email address.</p>
       <p>— Team Spandan 2026, JIPMER</p>`,
   }),
+  delegate_id_updated: ({ fullName, delegateId, previousDelegateId }) => ({
+    subject: `Spandan 2026 — Your Delegate ID has been updated`,
+    html: `<p>Hi ${escapeHtml(fullName || "there")},</p>
+      <p>Because of a new pass/tier added to your account, your Spandan 2026 Delegate ID has changed.</p>
+      ${previousDelegateId ? `<p>Previous ID: <b>${escapeHtml(previousDelegateId)}</b> (no longer valid)</p>` : ""}
+      <p>Your new Delegate ID: <b>${escapeHtml(delegateId)}</b></p>
+      <p>Please use this new ID for all future event registrations and at check-in. The new pass is pending committee verification — check your Profile for live status.</p>
+      <p>— Team Spandan 2026, JIPMER</p>`,
+  }),
 };
 
 function escapeHtml(str = "") {

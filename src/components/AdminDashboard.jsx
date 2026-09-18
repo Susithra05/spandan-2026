@@ -28,6 +28,23 @@ function downloadCSV(filename, headers, rows) {
   document.body.removeChild(link);
 }
 
+// A small fixed palette used to give every multi-item purchase a
+// consistent, distinguishable accent so bundled rows in Table 2 read
+// as one group at a glance, without merging them into one row —
+// each stays independently approvable/rejectable (Section 5.1).
+const BUNDLE_ACCENTS = [
+  "border-l-mist-400/70 shadow-[inset_3px_0_0_0_rgba(125,211,252,0.15)]",
+  "border-l-lantern-400/70 shadow-[inset_3px_0_0_0_rgba(240,169,60,0.15)]",
+  "border-l-berry-400/70 shadow-[inset_3px_0_0_0_rgba(236,72,153,0.15)]",
+  "border-l-emerald-400/70 shadow-[inset_3px_0_0_0_rgba(52,211,153,0.15)]",
+  "border-l-toadstool-400/70 shadow-[inset_3px_0_0_0_rgba(249,115,22,0.15)]",
+];
+function bundleAccentFor(purchaseId) {
+  let hash = 0;
+  for (let i = 0; i < purchaseId.length; i++) hash = (hash * 31 + purchaseId.charCodeAt(i)) >>> 0;
+  return BUNDLE_ACCENTS[hash % BUNDLE_ACCENTS.length];
+}
+
 export default function AdminDashboard() {
   const [showPassword, setShowPassword] = useState(false);
   const [passcode, setPasscode] = useState("");
@@ -36,6 +53,7 @@ export default function AdminDashboard() {
   const [eventRegs, setEventRegs] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [priceCatalog, setPriceCatalog] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -47,10 +65,24 @@ export default function AdminDashboard() {
   const [eventSearch, setEventSearch] = useState("");
   const [eventStatusFilter, setEventStatusFilter] = useState("ALL");
   const [expandedEventRegId, setExpandedEventRegId] = useState(null);
-  const [activeTable, setActiveTable] = useState("passes"); // "passes" | "events"
+  const [activeTable, setActiveTable] = useState("passes"); // "passes" | "events" | "catalog"
+
+  // Table 3 (Event Master) filters + in-progress edits
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogDrafts, setCatalogDrafts] = useState({}); // { [code]: { price?, title_override? } }
+  const [catalogSaving, setCatalogSaving] = useState(null); // code currently saving
 
   const adminKey = () => sessionStorage.getItem("spandan_admin_key") || passcode.trim();
 
+  // ---------------------------------------------------------------
+  // AUTH — previously, an RPC error (e.g. simply typing the WRONG
+  // passcode) fell through to an UNAUTHENTICATED direct table query
+  // and still marked the session as logged in, leaking real purchase
+  // data to anyone who guessed wrong. There is no fallback path any
+  // more: every one of these calls is admin_key-gated server-side,
+  // and isAuthenticated only ever becomes true once ALL of them have
+  // actually succeeded (Section 1.3).
+  // ---------------------------------------------------------------
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -58,35 +90,32 @@ export default function AdminDashboard() {
     const key = passcode.trim();
 
     try {
-      const [purchasesRes, eventsRes, teamsRes, groupsRes] = await Promise.all([
+      const [purchasesRes, eventsRes, teamsRes, groupsRes, catalogRes] = await Promise.all([
         supabase.rpc("get_admin_purchases", { admin_key: key }),
         supabase.rpc("get_admin_event_registrations", { admin_key: key }),
         supabase.rpc("get_admin_team_members", { admin_key: key }),
         supabase.rpc("get_admin_groups", { admin_key: key }),
+        supabase.rpc("admin_list_price_catalog", { admin_key: key }),
       ]);
 
-      if (purchasesRes.error) {
-        const { data: directPurchases, error: directErr } = await supabase
-          .from("purchases")
-          .select("*")
-          .order("created_at", { ascending: false });
-        if (directErr) throw directErr;
-        setPurchases(directPurchases || []);
-        const { data: directEvents } = await supabase.from("event_registrations").select("*");
-        setEventRegs(directEvents || []);
-        const { data: directTeams } = await supabase.from("team_members").select("*");
-        setTeamMembers(directTeams || []);
-        setGroups([]); // groups RLS only allows leaders/members to see their own — admin needs get_admin_groups()
-      } else {
-        setPurchases(purchasesRes.data || []);
-        setEventRegs(eventsRes.data || []);
-        setTeamMembers(teamsRes.data || []);
-        setGroups(groupsRes.data || []);
-      }
+      const firstError = purchasesRes.error || eventsRes.error || teamsRes.error || groupsRes.error || catalogRes.error;
+      if (firstError) throw firstError;
+
+      setPurchases(purchasesRes.data || []);
+      setEventRegs(eventsRes.data || []);
+      setTeamMembers(teamsRes.data || []);
+      setGroups(groupsRes.data || []);
+      setPriceCatalog(catalogRes.data || []);
 
       setIsAuthenticated(true);
       sessionStorage.setItem("spandan_admin_key", key);
     } catch (err) {
+      setIsAuthenticated(false);
+      setPurchases([]);
+      setEventRegs([]);
+      setTeamMembers([]);
+      setGroups([]);
+      setPriceCatalog([]);
       setErrorMsg("Invalid Passcode or Unauthorized Access: " + err.message);
     } finally {
       setLoading(false);
@@ -100,10 +129,7 @@ export default function AdminDashboard() {
         p_id: id,
         p_status: status,
       });
-      if (error) {
-        const { error: directErr } = await supabase.from("purchases").update({ payment_status: status }).eq("id", id);
-        if (directErr) throw directErr;
-      }
+      if (error) throw error;
       setPurchases((prev) => prev.map((r) => (r.id === id ? { ...r, payment_status: status } : r)));
 
       // Best-effort email — requires the admin's browser to have an
@@ -114,6 +140,32 @@ export default function AdminDashboard() {
       const row = purchases.find((r) => r.id === id);
       if (row?.email) {
         sendNotification("status_change", row.email, { fullName: row.full_name, delegateId: row.delegate_id, status });
+      }
+    } catch (err) {
+      alert("Failed to update status: " + err.message);
+    }
+  };
+
+  // Table 2's own independent status — previously this table had NO
+  // status of its own and Approve/Reject actually mutated the PARENT
+  // pass purchase (silently affecting every other event bought in the
+  // same checkout too). Each event registration row is now approved
+  // or rejected on its own (Section 5.1); a rejected PASS purchase
+  // still cascades down to that person's pending/approved events
+  // automatically server-side (migration_v7.sql trigger, Section 5.2).
+  const updateEventStatus = async (id, status) => {
+    try {
+      const { error } = await supabase.rpc("admin_update_event_status", {
+        admin_key: adminKey(),
+        p_id: id,
+        p_status: status,
+      });
+      if (error) throw error;
+      setEventRegs((prev) => prev.map((r) => (r.id === id ? { ...r, payment_status: status } : r)));
+      const row = eventRegs.find((r) => r.id === id);
+      const parent = purchases.find((p) => p.id === row?.purchase_id);
+      if (parent?.email) {
+        sendNotification("status_change", parent.email, { fullName: row.participant_name, delegateId: row.delegate_id, status });
       }
     } catch (err) {
       alert("Failed to update status: " + err.message);
@@ -156,7 +208,6 @@ export default function AdminDashboard() {
 
   // ---------------- TABLE 2: Event Registrations ----------------
   const filteredEventRows = eventRegs.filter((row) => {
-    const parent = purchaseFor(row.purchase_id);
     const term = eventSearch.toLowerCase();
     const matchesSearch =
       !term ||
@@ -164,14 +215,21 @@ export default function AdminDashboard() {
       row.delegate_id?.toLowerCase().includes(term) ||
       row.event_title?.toLowerCase().includes(term) ||
       row.participant_whatsapp?.includes(term);
-    const status = parent?.payment_status || "PENDING_VERIFICATION";
+    const status = row.payment_status || "PENDING_VERIFICATION";
     const matchesStatus = eventStatusFilter === "ALL" || status === eventStatusFilter;
     return matchesSearch && matchesStatus;
   });
 
+  // purchase_id -> row count, used to decide which rows get a bundle
+  // accent (only purchases with MORE THAN ONE event row bother).
+  const purchaseRowCounts = eventRegs.reduce((acc, r) => {
+    acc[r.purchase_id] = (acc[r.purchase_id] || 0) + 1;
+    return acc;
+  }, {});
+
   const exportEventsCSV = () => {
     const headers = [
-      "Delegate ID", "Participant Name", "WhatsApp Number", "Event Registered", "Sub Event",
+      "Delegate ID", "Participant Name", "WhatsApp Number", "Event Registered", "Sub Event", "Group Code",
       "Team Event", "Teammates (Name:ID)", "Payment Screenshot URL", "UTR Number", "Status", "Submitted At",
     ];
     const rows = filteredEventRows.map((r) => {
@@ -179,13 +237,68 @@ export default function AdminDashboard() {
       const roster = teamForEventReg(r.id);
       return [
         `"${r.delegate_id || ""}"`, `"${r.participant_name || ""}"`, `"${r.participant_whatsapp || ""}"`,
-        `"${r.event_title || ""}"`, `"${r.sub_event || ""}"`, `"${r.is_team_event ? "Yes" : "No"}"`,
+        `"${r.event_title || ""}"`, `"${r.sub_event || ""}"`, `"${groupCodeFor(parent?.group_id) || ""}"`,
+        `"${r.is_team_event ? "Yes" : "No"}"`,
         `"${roster.map((m) => `${m.full_name}:${m.delegate_id}`).join("; ")}"`,
-        `"${parent?.payment_screenshot_url || ""}"`, `"${r.utr_number || parent?.utr_number || ""}"`, `"${parent?.payment_status || "PENDING"}"`,
+        `"${parent?.payment_screenshot_url || ""}"`, `"${r.utr_number || parent?.utr_number || ""}"`, `"${r.payment_status || "PENDING"}"`,
         `"${new Date(r.created_at).toLocaleString()}"`,
       ];
     });
     downloadCSV(`spandan_events_master_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+  };
+
+  // ---------------- TABLE 3: Event Master (price_catalog) ----------------
+  const catalogEventRows = priceCatalog.filter((c) => c.kind === "event");
+  const filteredCatalogRows = catalogEventRows.filter((row) => {
+    const term = catalogSearch.toLowerCase();
+    return !term || row.code.toLowerCase().includes(term) || row.base_label.toLowerCase().includes(term);
+  });
+  const liveRegCount = (code) =>
+    eventRegs.filter((r) => {
+      const rowCode = r.sub_event ? `${r.event_id}:${r.sub_event}` : r.event_id;
+      return rowCode === code && r.payment_status !== "REJECTED";
+    }).length;
+
+  const draftFor = (code) => catalogDrafts[code] || {};
+  const setDraft = (code, patch) => setCatalogDrafts((prev) => ({ ...prev, [code]: { ...prev[code], ...patch } }));
+
+  const saveCatalogRow = async (code) => {
+    const draft = draftFor(code);
+    if (draft.price === undefined && draft.title_override === undefined) return;
+    setCatalogSaving(code);
+    try {
+      const { data, error } = await supabase.rpc("admin_update_price_catalog", {
+        admin_key: adminKey(),
+        p_code: code,
+        p_price: draft.price !== undefined && draft.price !== "" ? Number(draft.price) : null,
+        p_title_override: draft.title_override !== undefined && draft.title_override !== "" ? draft.title_override : null,
+      });
+      if (error) throw error;
+      setPriceCatalog((prev) => prev.map((c) => (c.code === code ? data : c)));
+      setCatalogDrafts((prev) => {
+        const next = { ...prev };
+        delete next[code];
+        return next;
+      });
+    } catch (err) {
+      alert("Failed to save: " + err.message);
+    } finally {
+      setCatalogSaving(null);
+    }
+  };
+
+  const toggleCatalogOpen = async (code, currentlyOpen) => {
+    try {
+      const { data, error } = await supabase.rpc("admin_update_price_catalog", {
+        admin_key: adminKey(),
+        p_code: code,
+        p_registrations_open: !currentlyOpen,
+      });
+      if (error) throw error;
+      setPriceCatalog((prev) => prev.map((c) => (c.code === code ? data : c)));
+    } catch (err) {
+      alert("Failed to toggle: " + err.message);
+    }
   };
 
   if (!isAuthenticated) {
@@ -231,7 +344,7 @@ export default function AdminDashboard() {
 
       {/* Table toggle */}
       <div className="flex justify-center">
-        <div className="inline-flex bg-white/5 border border-white/10 rounded-2xl p-1.5 gap-1">
+        <div className="inline-flex bg-white/5 border border-white/10 rounded-2xl p-1.5 gap-1 flex-wrap justify-center">
           <button
             onClick={() => setActiveTable("passes")}
             className={`px-5 py-2.5 rounded-xl text-sm font-bold transition ${
@@ -247,6 +360,14 @@ export default function AdminDashboard() {
             }`}
           >
             Table 2: Event Registrations Master ({eventRegs.length})
+          </button>
+          <button
+            onClick={() => setActiveTable("catalog")}
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition ${
+              activeTable === "catalog" ? "bg-mist-400 text-canopy-950" : "text-slate-300 hover:bg-white/5"
+            }`}
+          >
+            Table 3: Event Master ({catalogEventRows.length})
           </button>
         </div>
       </div>
@@ -342,9 +463,12 @@ export default function AdminDashboard() {
                       )}
                     </td>
                     <td className="px-4 py-3"><StatusBadge status={row.payment_status} /></td>
-                    <td className="px-4 py-3 text-right space-x-1">
+                    <td className="px-4 py-3 text-right space-x-1 whitespace-nowrap">
                       <button onClick={() => updatePurchaseStatus(row.id, "APPROVED")} className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition">Approve</button>
                       <button onClick={() => updatePurchaseStatus(row.id, "REJECTED")} className="px-2.5 py-1 rounded-lg bg-red-600/80 hover:bg-red-500 text-white text-[10px] font-bold transition">Reject</button>
+                      {row.payment_status !== "PENDING_VERIFICATION" && (
+                        <button onClick={() => updatePurchaseStatus(row.id, "PENDING_VERIFICATION")} className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-[10px] font-bold transition">↺ Pending</button>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -366,6 +490,10 @@ export default function AdminDashboard() {
             ⬇ Export Events CSV
           </button>
         </div>
+        <p className="text-[10px] text-slate-500 -mt-2">
+          Rows sharing a colored left edge were bought together in one checkout (same transaction/UTR) — each is still approved or rejected
+          independently.
+        </p>
 
         <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
           <input
@@ -398,6 +526,7 @@ export default function AdminDashboard() {
                 <th className="px-4 py-3">Participant</th>
                 <th className="px-4 py-3">WhatsApp</th>
                 <th className="px-4 py-3">Event Registered</th>
+                <th className="px-4 py-3">Group</th>
                 <th className="px-4 py-3">Teammates</th>
                 <th className="px-4 py-3">Receipt</th>
                 <th className="px-4 py-3">UTR Number</th>
@@ -407,15 +536,16 @@ export default function AdminDashboard() {
             </thead>
             <tbody className="divide-y divide-white/5">
               {filteredEventRows.length === 0 ? (
-                <tr><td colSpan="9" className="text-center py-8 text-slate-500">No event registrations found.</td></tr>
+                <tr><td colSpan="10" className="text-center py-8 text-slate-500">No event registrations found.</td></tr>
               ) : (
                 filteredEventRows.map((row) => {
                   const parent = purchaseFor(row.purchase_id);
                   const roster = teamForEventReg(row.id);
-                  const status = parent?.payment_status || "PENDING_VERIFICATION";
+                  const status = row.payment_status || "PENDING_VERIFICATION";
+                  const bundled = (purchaseRowCounts[row.purchase_id] || 0) > 1;
                   return (
                     <React.Fragment key={row.id}>
-                      <tr className="hover:bg-white/[0.02] transition">
+                      <tr className={`hover:bg-white/[0.02] transition ${bundled ? `border-l-2 ${bundleAccentFor(row.purchase_id)}` : ""}`}>
                         <td className="px-4 py-3 font-mono font-bold text-lantern-300">{row.delegate_id || "—"}</td>
                         <td className="px-4 py-3 font-semibold text-parchment-50">{row.participant_name || "—"}</td>
                         <td className="px-4 py-3 font-mono">{row.participant_whatsapp || "—"}</td>
@@ -424,8 +554,11 @@ export default function AdminDashboard() {
                           {row.sub_event && <div className="text-[10px] text-slate-400">{row.sub_event}</div>}
                           <div className="text-amber-300 font-bold mt-0.5">{row.price > 0 ? `₹${row.price}` : "Free"}</div>
                         </td>
+                        <td className="px-4 py-3 font-mono text-mist-400">
+                          {parent?.group_id ? `👑 ${groupCodeFor(parent.group_id) || "Group"}` : <span className="text-slate-500 italic font-sans">—</span>}
+                        </td>
                         <td className="px-4 py-3">
-                          {row.is_team_event ? (
+                          {row.team_size > 0 ? (
                             <button
                               onClick={() => setExpandedEventRegId(expandedEventRegId === row.id ? null : row.id)}
                               className="text-mist-400 hover:underline font-semibold"
@@ -447,19 +580,18 @@ export default function AdminDashboard() {
                           )}
                         </td>
                         <td className="px-4 py-3"><StatusBadge status={status} /></td>
-                        <td className="px-4 py-3 text-right space-x-1">
-                          {parent && (
-                            <>
-                              <button onClick={() => updatePurchaseStatus(parent.id, "APPROVED")} className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition">Approve</button>
-                              <button onClick={() => updatePurchaseStatus(parent.id, "REJECTED")} className="px-2.5 py-1 rounded-lg bg-red-600/80 hover:bg-red-500 text-white text-[10px] font-bold transition">Reject</button>
-                            </>
+                        <td className="px-4 py-3 text-right space-x-1 whitespace-nowrap">
+                          <button onClick={() => updateEventStatus(row.id, "APPROVED")} className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition">Approve</button>
+                          <button onClick={() => updateEventStatus(row.id, "REJECTED")} className="px-2.5 py-1 rounded-lg bg-red-600/80 hover:bg-red-500 text-white text-[10px] font-bold transition">Reject</button>
+                          {status !== "PENDING_VERIFICATION" && (
+                            <button onClick={() => updateEventStatus(row.id, "PENDING_VERIFICATION")} className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-[10px] font-bold transition">↺ Pending</button>
                           )}
                         </td>
                       </tr>
                       {expandedEventRegId === row.id && (
                         <tr>
-                          <td colSpan="9" className="px-4 py-4 bg-canopy-950/60">
-                            <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Team Roster</p>
+                          <td colSpan="10" className="px-4 py-4 bg-canopy-950/60">
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Team Member{roster.length !== 1 ? "s" : ""}</p>
                             <div className="space-y-1">
                               {roster.map((m) => (
                                 <div key={m.id} className="flex justify-between text-[11px] text-slate-300">
@@ -469,11 +601,107 @@ export default function AdminDashboard() {
                                   </span>
                                 </div>
                               ))}
+                              {roster.length === 0 && <p className="text-[11px] text-slate-500 italic">No team members added.</p>}
                             </div>
                           </td>
                         </tr>
                       )}
                     </React.Fragment>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      )}
+
+      {/* ============ TABLE 3: Event Master ============ */}
+      {activeTable === "catalog" && (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h3 className="text-xl font-display font-bold text-mist-200">
+            Event Master <span className="text-sm text-slate-400 font-normal">({filteredCatalogRows.length})</span>
+          </h3>
+        </div>
+        <p className="text-[10px] text-slate-500">
+          Price and title changes apply site-wide immediately. Closing registrations shows "Registrations Full" on the public event card and
+          blocks new sign-ups for that event/sub-event — anyone already registered is unaffected.
+        </p>
+
+        <input
+          type="text"
+          placeholder="Search events..."
+          value={catalogSearch}
+          onChange={(e) => setCatalogSearch(e.target.value)}
+          className="w-full sm:w-96 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-parchment-50 text-xs outline-none focus:border-mist-500 transition"
+        />
+
+        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#16281f]">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="bg-white/5 uppercase font-mono text-[10px] text-slate-400 border-b border-white/10">
+              <tr>
+                <th className="px-4 py-3">Event / Sub-event</th>
+                <th className="px-4 py-3">Live Registrations</th>
+                <th className="px-4 py-3">Title Override</th>
+                <th className="px-4 py-3">Price (₹)</th>
+                <th className="px-4 py-3">Registrations</th>
+                <th className="px-4 py-3 text-right">Save</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {filteredCatalogRows.length === 0 ? (
+                <tr><td colSpan="6" className="text-center py-8 text-slate-500">No matching events.</td></tr>
+              ) : (
+                filteredCatalogRows.map((row) => {
+                  const draft = draftFor(row.code);
+                  const dirty = draft.price !== undefined || draft.title_override !== undefined;
+                  return (
+                    <tr key={row.code} className="hover:bg-white/[0.02] transition">
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-parchment-50">{row.title_override || row.base_label}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{row.code}</div>
+                      </td>
+                      <td className="px-4 py-3 font-bold text-mist-300">{liveRegCount(row.code)}</td>
+                      <td className="px-4 py-3">
+                        <input
+                          placeholder={row.base_label}
+                          value={draft.title_override !== undefined ? draft.title_override : ""}
+                          onChange={(e) => setDraft(row.code, { title_override: e.target.value })}
+                          className="w-40 px-2 py-1.5 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-[11px]"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          min="0"
+                          value={draft.price !== undefined ? draft.price : row.price}
+                          onChange={(e) => setDraft(row.code, { price: e.target.value })}
+                          className="w-20 px-2 py-1.5 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-[11px]"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => toggleCatalogOpen(row.code, row.registrations_open)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition border ${
+                            row.registrations_open
+                              ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25"
+                              : "bg-red-500/15 text-red-300 border-red-500/40 hover:bg-red-500/25"
+                          }`}
+                        >
+                          {row.registrations_open ? "Accepting" : "Closed"}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => saveCatalogRow(row.code)}
+                          disabled={!dirty || catalogSaving === row.code}
+                          className="px-3 py-1.5 rounded-lg bg-lantern-400 text-canopy-950 text-[10px] font-bold disabled:opacity-30 disabled:cursor-not-allowed transition"
+                        >
+                          {catalogSaving === row.code ? "Saving..." : "Save"}
+                        </button>
+                      </td>
+                    </tr>
                   );
                 })
               )}

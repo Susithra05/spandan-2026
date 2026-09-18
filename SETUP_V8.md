@@ -1,96 +1,48 @@
-# Spandan 2026 — v8 Setup Guide
+# Spandan 2026 — v8 setup notes
 
-This covers everything new in v8: brochure/footer/payment-modal fixes,
-Delegate ID identity verification, Group Registration, profile editing,
-and transactional emails. Follow these steps **in order**.
+## 1. Run the migration
+In the Supabase SQL Editor, run `supabase/migration_v7.sql` in full
+(after v3–v6 have already been applied, same as before). It's written
+to be safe to re-run and won't overwrite anything an admin has already
+edited via Table 3.
 
-## 1. Run the SQL migration
+## 2. Check Vercel environment variables
+No new secrets are required, but confirm these are all set on the
+Vercel project (Settings → Environment Variables), since the new
+`/api/submit-group-purchase` function needs the anon key server-side
+too (previously only the browser build used it):
 
-In the Supabase SQL Editor, run `supabase/migration_v6.sql` (after
-`migration_v5.sql`, which should already be applied from v7).
+- `SUPABASE_URL` (or `VITE_SUPABASE_URL`)
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `VITE_SUPABASE_ANON_KEY` — **make sure this is available to
+  Serverless Functions, not just the frontend build.** In Vercel's
+  env var settings, each variable can be scoped to
+  Production/Preview/Development — as long as it's not restricted to
+  "Build time only", a Node serverless function can read it via
+  `process.env`.
+- `RESEND_API_KEY`, `RESEND_FROM`
 
-Before running it, **also** go back and make sure you replaced every
-`'CHANGE_ME'` in `supabase/migration.sql`'s four `get_admin_*` /
-`admin_update_purchase_status` functions with your real admin
-passcode — `migration_v6.sql` adds a fifth admin function
-(`get_admin_groups`) that reuses the **same** passcode, so if you
-haven't set it yet, set it now and re-run those five function
-definitions together.
+## 3. Deploy
+Redeploy as usual — `vercel.json` (new) fixes the password-reset
+404-on-refresh issue by rewriting all non-`/api` paths to
+`index.html`.
 
-Nothing in this migration touches your existing data — old 7-character
-Delegate IDs from before v8 stay valid forever; only *new* IDs
-generated from now on are 8 characters (13 for group members).
+## 4. What changed in this version
+See the comment block at the top of `supabase/migration_v7.sql` and
+the inline comments throughout the changed files for the reasoning
+behind each fix — they're written to double as documentation for
+future sessions.
 
-## 2. Deploy the two new serverless functions
-
-`api/provision-group-member.js` and `api/send-notification.js` are
-plain Vercel serverless functions — Vercel picks them up automatically
-on your next deploy, no config needed. They just need environment
-variables set first:
-
-In **Vercel → your project → Settings → Environment Variables**, add:
-
-| Variable | Where to find it |
-|---|---|
-| `SUPABASE_URL` | Same as `VITE_SUPABASE_URL` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API → `service_role` (secret — never prefix with `VITE_`) |
-| `RESEND_API_KEY` | resend.com → API Keys |
-| `RESEND_FROM` | Optional. A sender you've verified in Resend, e.g. `Spandan 2026 <noreply@jipmerspandan.site>`. Leave unset to use Resend's shared test sender while you're setting things up. |
-
-`.env.example` in the repo root lists all of these for reference.
-
-## 3. One Supabase Auth setting to check
-
-For a Group Leader's teammates to be able to "Sign in with Google"
-using the *same* email their account was auto-created with, your
-Supabase project needs **Authentication → Settings → "Allow manual
-linking of accounts"** (or your dashboard's equivalent wording)
-enabled — otherwise Supabase treats an email/password identity and a
-Google identity on the same address as two separate accounts. This is
-a one-time dashboard toggle, not a code change.
-
-## 4. What each open item now does
-
-- **Brochure / Footer** — done, no setup needed.
-- **Payment modal** — UPI ID + copy button + merchant name, Review
-  Details step, and free-checkout bypass — done, no setup needed.
-- **Delegate ID format** — new IDs are 8 chars (individual) or 13
-  chars `G0XX-XXXXXXXX` (group). Enforced both client-side (regex +
-  maxLength) and is otherwise just longer numeric suffixes from the
-  same counters as before.
-- **Identity verification** — registering yourself now checks the ID
-  is actually *yours* (not just that it exists), with an autocomplete
-  dropdown of your own IDs. Editing an autofilled name/phone away from
-  what's on record blocks submission until you re-validate.
-- **Group Registration** — new "👑 Group Registration" tab. Buying a
-  pass there makes you a leader, generates a Group Code, and — for
-  every teammate email you add — calls
-  `/api/provision-group-member` to find-or-create their Supabase
-  account before writing their purchase row.
-- **Group delegation** — once you lead a group, the Events checkout
-  screen shows an "Individual ID / Group ID" toggle; in Group ID mode
-  you get a live autosuggest of just your own group's members.
-- **Team-mate verification** — each team roster row now also asks for
-  the team-mate's email, checked server-side against their Delegate
-  ID (never exposes the actual email back to the browser), plus a
-  type-to-search autosuggest.
-- **Profile editing** — your own Profile page now has an "Edit" link
-  on your identity fields, and (if you lead a group) an editable
-  roster for every member. Editing anything on an already-`APPROVED`
-  row automatically flips it back to `PENDING_VERIFICATION` — this
-  happens in a database trigger, not in the app, so it can't be
-  bypassed.
-- **Emails** — pass purchase, event registration, group-member
-  invites, and admin approve/reject all fire a Resend email via
-  `/api/send-notification`. Every call site treats a failed email as
-  non-fatal (logged to console, registration still succeeds) — the
-  Admin Dashboard's approve/reject buttons specifically need the
-  person operating it to have an active Spandan login in that browser
-  tab (any account) for the "status changed" email to actually send,
-  since the endpoint authenticates via Supabase session token.
-
-## 5. Verified before delivery
-
-- `npm run build` — full production build succeeds.
-- Every changed/added file passed an `esbuild --bundle` check (catches
-  missing imports/exports, not just syntax).
+Known gaps intentionally NOT addressed in this pass (carried over,
+still open):
+- `utr_number` has no uniqueness/replay protection (legitimate group
+  purchases share one UTR across every member's row, so a naive
+  UNIQUE constraint would break that — needs a smarter per-transaction
+  check, not a blanket column constraint).
+- Payment screenshots / ID cards are still stored as public URLs
+  (anyone with the link can view them) rather than behind
+  signed/expiring URLs.
+- The pass-rejection → event cascade (Section 5.2) assumes one active
+  pass per delegate, which is true for Spandan's normal flow but
+  isn't dependency-tracked per-event if someone ever holds two passes
+  at once.

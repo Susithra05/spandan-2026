@@ -25,6 +25,26 @@ export function getAdminClient() {
   return createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
+// A client authenticated AS THE CALLING USER (their own access token,
+// forwarded as-is) rather than as the service role. Needed whenever a
+// serverless function has to call a SECURITY DEFINER Postgres
+// function that itself checks `auth.uid()` (e.g. create_group_purchase,
+// resolve_my_delegate_id) — the service-role client has no "logged in
+// user" of its own, so auth.uid() would come back null through it.
+// Uses the same public anon key the browser bundle already ships
+// with (VITE_SUPABASE_ANON_KEY) — no new secret to configure.
+export function getCallerScopedClient(token) {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) {
+    throw new Error("Server misconfigured: SUPABASE_URL / VITE_SUPABASE_ANON_KEY not set in Vercel env vars.");
+  }
+  return createClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+}
+
 // The client sends the logged-in user's Supabase access token (from
 // supabase.auth.getSession()) in the Authorization header. We verify
 // it against Supabase Auth itself — this is what stops a random
@@ -61,4 +81,23 @@ export async function findUserByEmail(admin, email) {
     if (data.users.length < perPage) return null;
   }
   return null;
+}
+
+// Best-effort cleanup used by submit-group-purchase.js: if the
+// atomic create_group_purchase() DB transaction fails AFTER some
+// brand-new Auth accounts were already provisioned for teammates who
+// didn't exist yet, those accounts would otherwise be silently
+// orphaned (created, but with zero purchase rows, blocking a clean
+// retry with the same email). Only ever called with accounts THIS
+// SAME REQUEST just created (never a pre-existing account), so it
+// can't delete anyone else's real account. Failures here are logged,
+// not thrown — cleanup failing shouldn't hide the original error.
+export async function deleteJustCreatedUsers(admin, userIds = []) {
+  for (const id of userIds) {
+    try {
+      await admin.auth.admin.deleteUser(id);
+    } catch (err) {
+      console.error(`Cleanup: failed to remove just-created user ${id}:`, err.message);
+    }
+  }
 }
