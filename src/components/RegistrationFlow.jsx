@@ -1,5 +1,5 @@
 // src/components/RegistrationFlow.jsx
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { normalizeDelegateId, ANY_DELEGATE_ID_REGEX, GROUP_ID_REGEX } from "../lib/idGenerator";
 import { sendNotification, resolveMyDelegateId, recomputePurchaseAmount, submitGroupPurchase } from "../lib/serverApi";
@@ -987,17 +987,55 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
   // row at a time.
   const [openSuggestFor, setOpenSuggestFor] = useState(null); // `${key}:${idx}` | null
   const [memberSuggestions, setMemberSuggestions] = useState([]);
+  const suggestReqRef = useRef(0);
   const fetchMemberSuggestions = async (key, idx, prefix) => {
     if (!prefix || prefix.trim().length < 2) {
       setMemberSuggestions([]);
       return;
     }
-    const { data, error } = await supabase.rpc("search_delegate_ids", { p_prefix: prefix, p_limit: 6 });
+    const reqId = ++suggestReqRef.current;
+    const q = prefix.trim();
+    // Public lookup: ID + name only (no email/phone — see migration_v6).
+    const publicPromise = supabase.rpc("search_delegate_ids", { p_prefix: q, p_limit: 6 });
+    // If the caller leads any groups, also search those groups: that RPC
+    // also returns each member's phone + email, which the leader already
+    // knows, so picking a group member can fill in EVERYTHING.
+    const groupPromises = (myGroups || []).map((g) =>
+      supabase.rpc("search_group_members", { p_group_id: g.id, p_prefix: q })
+    );
+    const [publicRes, ...groupRes] = await Promise.all([publicPromise, ...groupPromises]);
+    if (reqId !== suggestReqRef.current) return; // a newer keystroke superseded this one
+
+    const merged = new Map();
+    (publicRes.error ? [] : publicRes.data || []).forEach((r) => merged.set(r.delegate_id, r));
+    groupRes.forEach((res) =>
+      (res.error ? [] : res.data || []).forEach((r) => merged.set(r.delegate_id, { ...merged.get(r.delegate_id), ...r }))
+    );
     setOpenSuggestFor(`${key}:${idx}`);
-    setMemberSuggestions(error ? [] : data || []);
+    setMemberSuggestions([...merged.values()].slice(0, 8));
   };
+  // Picking a suggestion now fills the whole row, not just the ID:
+  // name always; WhatsApp + email too when the person is one of the
+  // caller's own group members (the only case where those are known).
   const selectMemberSuggestion = (key, idx, suggestion) => {
-    updateTeamMember(key, idx, "delegateId", suggestion.delegate_id);
+    setCartEvents((prev) =>
+      prev.map((e) => {
+        if (e.key !== key) return e;
+        const members = [...e.members];
+        const current = members[idx] || {};
+        members[idx] = {
+          ...current,
+          delegateId: suggestion.delegate_id,
+          name: suggestion.full_name || current.name || "",
+          whatsapp: suggestion.phone ? onlyDigits(suggestion.phone).slice(-10) : current.whatsapp || "",
+          email: suggestion.email || current.email || "",
+          verified: null,
+          validation: null,
+          verifiedName: null,
+        };
+        return { ...e, members };
+      })
+    );
     setOpenSuggestFor(null);
     setMemberSuggestions([]);
   };
@@ -1097,8 +1135,14 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
   // My-own-account suggestions for the Individual ID input.
   const myIdSuggestions = useMemo(() => {
     const q = normalizeDelegateId(delegateId);
-    if (!q) return myDelegateIds;
-    return myDelegateIds.filter((d) => d.delegate_id?.includes(q));
+    const byId = new Map();
+    myDelegateIds.forEach((d) => {
+      const prev = byId.get(d.delegate_id);
+      if (!prev || (!prev.phone && d.phone) || (!prev.full_name && d.full_name)) byId.set(d.delegate_id, { ...prev, ...d });
+    });
+    const unique = [...byId.values()];
+    if (!q) return unique;
+    return unique.filter((d) => d.delegate_id?.includes(q));
   }, [delegateId, myDelegateIds]);
 
   // Shared by the "Review Details" button (so the modal never opens on
@@ -1644,6 +1688,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                                       <button
                                         type="button"
                                         key={s.delegate_id}
+                                        onMouseDown={(ev4) => ev4.preventDefault()}
                                         onClick={() => selectMemberSuggestion(e.key, idx, s)}
                                         className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex justify-between gap-2"
                                       >
@@ -1793,6 +1838,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                     <button
                       type="button"
                       key={s.delegate_id}
+                      onMouseDown={(ev4) => ev4.preventDefault()}
                       onClick={() => applyIdentitySelection(s.delegate_id, s.full_name, s.phone, user.id, user.email)}
                       className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex justify-between gap-2"
                     >
@@ -1809,6 +1855,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                     <button
                       type="button"
                       key={s.delegate_id}
+                      onMouseDown={(ev4) => ev4.preventDefault()}
                       onClick={() => applyIdentitySelection(s.delegate_id, s.full_name, s.phone, s.user_id, s.email)}
                       className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex justify-between gap-2"
                     >
