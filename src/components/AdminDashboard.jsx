@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { sendNotification } from "../lib/serverApi";
+import { refreshLiveCatalog } from "../lib/liveCatalog";
 
 const statusPill = {
   APPROVED: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
@@ -267,14 +268,19 @@ export default function AdminDashboard() {
     if (draft.price === undefined && draft.title_override === undefined) return;
     setCatalogSaving(code);
     try {
+      const titleDraft = draft.title_override !== undefined ? draft.title_override.trim() : undefined;
       const { data, error } = await supabase.rpc("admin_update_price_catalog", {
         admin_key: adminKey(),
         p_code: code,
         p_price: draft.price !== undefined && draft.price !== "" ? Number(draft.price) : null,
-        p_title_override: draft.title_override !== undefined && draft.title_override !== "" ? draft.title_override : null,
+        p_title_override: titleDraft ? titleDraft : null,
+        // Emptying the box now RESETS the title back to the festData.js
+        // original (before, blanking it silently did nothing).
+        p_clear_title_override: titleDraft === "",
       });
       if (error) throw error;
       setPriceCatalog((prev) => prev.map((c) => (c.code === code ? data : c)));
+      refreshLiveCatalog(); // push the change to the public Events / Registration tabs right away
       setCatalogDrafts((prev) => {
         const next = { ...prev };
         delete next[code];
@@ -296,6 +302,7 @@ export default function AdminDashboard() {
       });
       if (error) throw error;
       setPriceCatalog((prev) => prev.map((c) => (c.code === code ? data : c)));
+      refreshLiveCatalog();
     } catch (err) {
       alert("Failed to toggle: " + err.message);
     }
@@ -665,8 +672,9 @@ export default function AdminDashboard() {
                       <td className="px-4 py-3 font-bold text-mist-300">{liveRegCount(row.code)}</td>
                       <td className="px-4 py-3">
                         <input
-                          placeholder={row.base_label}
-                          value={draft.title_override !== undefined ? draft.title_override : ""}
+                          placeholder={row.title_override || row.base_label}
+                          title="Type a new title and Save. Clear the box and Save to reset to the original."
+                          value={draft.title_override !== undefined ? draft.title_override : row.title_override || ""}
                           onChange={(e) => setDraft(row.code, { title_override: e.target.value })}
                           className="w-40 px-2 py-1.5 rounded-lg bg-canopy-950/60 border border-white/10 text-parchment-50 text-[11px]"
                         />

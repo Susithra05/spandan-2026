@@ -19,7 +19,6 @@ import {
   generalGuidelines,
   gettingHere,
   getEventAccess,
-  subEventLabel,
   FORM_ONLY_EVENT_IDS,
   specialSections,
   BROCHURE_URL,
@@ -27,6 +26,16 @@ import {
 import AdminDashboard from "./components/AdminDashboard";
 import RegistrationFlow from "./components/RegistrationFlow";
 import Profile from "./components/Profile";
+import {
+  useLiveCatalog,
+  liveEventAccess,
+  liveEventTitle,
+  liveEventDesc,
+  liveSubEventLabel,
+  liveEventSearchText,
+  liveCardPrice,
+  liveEventCardOpen,
+} from "./lib/liveCatalog";
 
 // Lightweight pure SVGs to avoid React 19 / Lucide incompatibility
 const SparklesIcon = () => (
@@ -281,6 +290,11 @@ export default function App() {
   // event-gating across the Events tab and the Registration flow.
   const [ownedPasses, setOwnedPasses] = useState([]);
 
+  // Admin-edited prices / titles / descriptions / "registrations full"
+  // flags from Event Master (Table 3) — layered over festData.js so the
+  // public Events tab always matches the Registration tab.
+  const { catalog } = useLiveCatalog();
+
   const fetchOwnedPasses = async (currentUser) => {
     const u = currentUser ?? user;
     if (!u) {
@@ -304,6 +318,39 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Password-reset links used to be sent with redirectTo=".../#reset-password".
+    // Supabase then APPENDS its own "#access_token=...&type=recovery" to
+    // that, producing "/#reset-password#access_token=..." — two hashes.
+    // supabase-js only understands ONE hash, so it never found the token,
+    // no PASSWORD_RECOVERY event fired, and the user just landed on the
+    // Home page (and links already sitting in people's inboxes still have
+    // that shape). Handle both shapes here explicitly.
+    const rawHash = window.location.hash || "";
+    const tokenAt = rawHash.indexOf("access_token=");
+    const errorAt = rawHash.search(/error(_code|_description)?=/);
+    const isDoubleHash = rawHash.indexOf("#", 1) !== -1;
+    if (isDoubleHash && tokenAt !== -1 && /type=recovery/.test(rawHash)) {
+      const params = new URLSearchParams(rawHash.slice(tokenAt));
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      if (access_token && refresh_token) {
+        supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
+          if (error) {
+            setActiveTab("auth");
+            setAuthMessage("This password reset link is invalid or has expired. Please request a new one.");
+          } else {
+            setShowResetPassword(true);
+          }
+        });
+      }
+    } else if (isDoubleHash && errorAt !== -1) {
+      // e.g. "#reset-password#error=access_denied&error_code=otp_expired"
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      setActiveTab("auth");
+      setAuthMessage("This password reset link is invalid or has expired. Please request a new one.");
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) fetchOwnedPasses(session.user);
@@ -387,7 +434,9 @@ export default function App() {
       return;
     }
     const { error } = await supabase.auth.resetPasswordForEmail(authEmail, {
-      redirectTo: `${window.location.origin}/#reset-password`,
+      // No "#fragment" here — Supabase adds its own "#access_token=..." and
+      // a second hash breaks token detection. PASSWORD_RECOVERY handles it.
+      redirectTo: `${window.location.origin}/`,
     });
     if (error) {
       setAuthMessage(error.message);
@@ -438,11 +487,7 @@ export default function App() {
         : eventsList.filter((ev) => ev.category === selectedCategory);
     if (eventSearchQuery.trim()) {
       const q = eventSearchQuery.trim().toLowerCase();
-      list = list.filter(
-        (ev) =>
-          ev.title.toLowerCase().includes(q) ||
-          ev.desc?.toLowerCase().includes(q),
-      );
+      list = list.filter((ev) => liveEventSearchText(catalog, ev).includes(q));
     }
     return list;
   })();
@@ -1079,8 +1124,21 @@ export default function App() {
                   {filteredEvents.map((ev) => {
                     const hasSubEvents =
                       ev.subEvents && ev.subEvents.length > 0;
-                    const access = getEventAccess(ev, ownedPasses);
+                    const access = liveEventAccess(
+                      getEventAccess,
+                      ev,
+                      ownedPasses,
+                      null,
+                      catalog,
+                    );
+                    const cardPrice = liveCardPrice(
+                      getEventAccess,
+                      ev,
+                      ownedPasses,
+                      catalog,
+                    );
                     const isFormOnly = FORM_ONLY_EVENT_IDS.includes(ev.id);
+                    const cardOpen = liveEventCardOpen(ev, catalog);
 
                     return (
                       <div
@@ -1117,6 +1175,11 @@ export default function App() {
                             </div>
                           </div>
                         )}
+                        {access.unlocked && !cardOpen && !isFormOnly && (
+                          <span className="absolute top-4 right-4 z-10 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-red-500/15 text-red-300 border border-red-500/40">
+                            Registrations Full
+                          </span>
+                        )}
                         {isFormOnly && (
                           <span className="absolute top-4 right-4 z-10 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">
                             No Pass Needed
@@ -1131,16 +1194,18 @@ export default function App() {
                             </span>
                             <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                               {!isFormOnly &&
-                                (access.price > 0
-                                  ? `₹${access.price}`
-                                  : "Free")}
+                                (cardPrice.price > 0
+                                  ? `${cardPrice.isRange ? "From " : ""}₹${cardPrice.price}`
+                                  : cardPrice.isRange
+                                    ? "From Free"
+                                    : "Free")}
                             </span>
                           </div>
                           <h3 className="text-lg font-bold text-parchment-50">
-                            {ev.title}
+                            {liveEventTitle(catalog, ev.id, ev.title)}
                           </h3>
                           <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-                            {ev.desc}
+                            {liveEventDesc(catalog, ev.id, ev.desc)}
                           </p>
 
                           {hasSubEvents && (
@@ -1149,17 +1214,36 @@ export default function App() {
                                 Sub-Categories / Formats:
                               </span>
                               <div className="flex flex-wrap gap-1.5">
-                                {ev.subEvents.map((sub, sIdx) => (
-                                  <span
-                                    key={sIdx}
-                                    className="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-canopy-950/60 border-white/10 text-slate-300"
-                                  >
-                                    {subEventLabel(sub)}
-                                    {typeof sub === "object"
-                                      ? ` · ₹${sub.price}`
-                                      : ""}
-                                  </span>
-                                ))}
+                                {ev.subEvents.map((sub, sIdx) => {
+                                  const subAccess = liveEventAccess(
+                                    getEventAccess,
+                                    ev,
+                                    ownedPasses,
+                                    sub,
+                                    catalog,
+                                  );
+                                  // Object sub-events (Gymnasium) always
+                                  // show their own price; string ones show
+                                  // it only when it differs from the
+                                  // card's headline price.
+                                  const showSubPrice =
+                                    typeof sub === "object" ||
+                                    cardPrice.isRange;
+                                  return (
+                                    <span
+                                      key={sIdx}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-canopy-950/60 border-white/10 text-slate-300"
+                                    >
+                                      {liveSubEventLabel(catalog, ev.id, sub)}
+                                      {showSubPrice && !isFormOnly
+                                        ? ` · ${subAccess.price > 0 ? `₹${subAccess.price}` : "Free"}`
+                                        : ""}
+                                      {!subAccess.registrationsOpen
+                                        ? " (Full)"
+                                        : ""}
+                                    </span>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}

@@ -3,7 +3,18 @@ import React, { useState, useMemo, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { normalizeDelegateId, ANY_DELEGATE_ID_REGEX, GROUP_ID_REGEX } from "../lib/idGenerator";
 import { sendNotification, resolveMyDelegateId, recomputePurchaseAmount, submitGroupPurchase } from "../lib/serverApi";
-import { useLiveCatalog, liveEventAccess, liveEventCardOpen, livePassPrice } from "../lib/liveCatalog";
+import {
+  useLiveCatalog,
+  liveEventAccess,
+  liveEventCardOpen,
+  livePassPrice,
+  liveEventTitle,
+  liveEventDesc,
+  liveSubEventLabel,
+  liveEntryTitle,
+  liveEventSearchText,
+  liveCardPrice,
+} from "../lib/liveCatalog";
 import {
   tiers,
   clubPasses,
@@ -888,10 +899,10 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
     let list = selectedCategory === "all" ? eventsList : eventsList.filter((ev) => ev.category === selectedCategory);
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
-      list = list.filter((ev) => ev.title.toLowerCase().includes(q) || ev.desc?.toLowerCase().includes(q));
+      list = list.filter((ev) => liveEventSearchText(catalog, ev).includes(q));
     }
     return list;
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, catalog]);
 
   // For team events, the price is per-person: perPersonPrice × number of
   // members currently in the roster. Non-team events keep a flat price.
@@ -914,7 +925,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
     const entry = {
       key,
       eventId: event.id,
-      title: subLabel ? `${event.title} — ${subLabel}` : event.title,
+      title: liveEntryTitle(catalog, event, subEvent),
       subEvent: subLabel,
       price: access.price,
       perPersonPrice: access.price,
@@ -1427,6 +1438,7 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                 )}
                 {filteredEvents.map((ev) => {
                   const access = liveEventAccess(getEventAccess, ev, ownedPasses, null, catalog);
+                  const cardPrice = liveCardPrice(getEventAccess, ev, ownedPasses, catalog);
                   const cardOpen = liveEventCardOpen(ev, catalog);
                   const hasSub = ev.subEvents && ev.subEvents.length > 0;
                   const isFormOnly = FORM_ONLY_EVENT_IDS.includes(ev.id);
@@ -1458,11 +1470,15 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                       </span>
                       <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                         {!isFormOnly &&
-                          (access.price > 0 ? `₹${access.price}${isTeamEvent(ev) ? "/person" : ""}` : "Free")}
+                          (cardPrice.price > 0
+                            ? `${cardPrice.isRange ? "From " : ""}₹${cardPrice.price}${isTeamEvent(ev) ? "/person" : ""}`
+                            : cardPrice.isRange
+                              ? "From Free"
+                              : "Free")}
                       </span>
                     </div>
-                    <h3 className="text-base font-bold text-parchment-50">{ev.title}</h3>
-                    <p className="text-xs text-slate-300 mt-1 leading-relaxed">{ev.desc}</p>
+                    <h3 className="text-base font-bold text-parchment-50">{liveEventTitle(catalog, ev.id, ev.title)}</h3>
+                    <p className="text-xs text-slate-300 mt-1 leading-relaxed">{liveEventDesc(catalog, ev.id, ev.desc)}</p>
                     {ev.externalFormUrl && (
                       <div className="mt-2 p-2 rounded-lg bg-toadstool-500/10 border border-toadstool-500/30">
                         <p className="text-[10px] text-toadstool-300 font-semibold">{ev.externalFormNote}</p>
@@ -1481,7 +1497,8 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                   {isFormOnly ? null : hasSub ? (
                     <div className="flex flex-wrap gap-1.5">
                       {ev.subEvents.map((sub, idx) => {
-                        const subLabel = subEventLabel(sub);
+                        const subLabel = subEventLabel(sub); // original label — used for the cart key / DB, never overridden
+                        const subDisplay = liveSubEventLabel(catalog, ev.id, sub);
                         const key = `${ev.id}:${subLabel}`;
                         const inCart = cartEvents.some((e) => e.key === key);
                         const subAccess = liveEventAccess(getEventAccess, ev, ownedPasses, sub, catalog);
@@ -1497,8 +1514,8 @@ function EventsCheckout({ user, ownedPasses, myDelegateIds, myGroups }) {
                             }`}
                           >
                             {inCart ? "✓ " : "+ "}
-                            {subLabel}
-                            {typeof sub === "object" ? ` · ${subAccess.price > 0 ? `₹${subAccess.price}` : "Free"}` : ""}
+                            {subDisplay}
+                            {typeof sub === "object" || cardPrice.isRange ? ` · ${subAccess.price > 0 ? `₹${subAccess.price}` : "Free"}` : ""}
                             {!subAccess.registrationsOpen ? " (Full)" : ""}
                           </button>
                         );
